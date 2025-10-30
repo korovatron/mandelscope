@@ -556,9 +556,11 @@
       const dx = t1.clientX - t2.clientX;
       const dy = t1.clientY - t2.clientY;
       const distance = Math.sqrt(dx*dx + dy*dy);
-      const scaleFactor = distance / initialDistance;
+      // Use a lower exponent to make zoom less sensitive to small finger movements
+      const zoomExponent = 0.4;
+      const zoomFactor = Math.pow(distance / initialDistance, zoomExponent);
       // Update scale
-      view.scale = initialScale / scaleFactor;
+      view.scale = initialScale / zoomFactor;
       // Update center to follow the pinch gesture
       const rect = canvasGL.getBoundingClientRect();
       const cx = (t1.clientX + t2.clientX) / 2 - rect.left;
