@@ -16,10 +16,19 @@
     scale: 3.5 / 800 // default units per pixel (will be reset on resize)
   };
 
+  // Zoom limits: maxScale is most zoomed out (large value), minScale is most zoomed in (small value)
+  let maxScale = 0.01; // will be set properly on resize (prevent zooming out too far)
+  const minScale = 1e-14; // deep zoom limit (near JavaScript float precision boundary)
+
   let maxIter = Number(iterSlider.value);
   iterVal.textContent = maxIter;
 
   let devicePixelRatio = window.devicePixelRatio || 1;
+  // Cap DPR at 2 on touch devices for better performance
+  const isTouchDevice = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+  if(isTouchDevice) {
+    devicePixelRatio = Math.min(devicePixelRatio, 2);
+  }
 
   let rendering = false;
   let abortRender = false;
@@ -64,6 +73,7 @@
     view.cx = -0.75;
     view.cy = 0;
     view.scale = Math.max(3.5 / canvasGL.width, 2.5 / canvasGL.height);
+    maxScale = view.scale; // Update maximum scale to current "fit all" scale
     requestRender();
   }
 
@@ -71,6 +81,10 @@
   function resize(){
     // re-evaluate devicePixelRatio in case window moved between screens or zoom changed
     devicePixelRatio = window.devicePixelRatio || 1;
+    // Cap DPR at 2 on touch devices for better performance
+    if(isTouchDevice) {
+      devicePixelRatio = Math.min(devicePixelRatio, 2);
+    }
 
     console.log('resize() called. dpr=', devicePixelRatio);
 
@@ -102,6 +116,10 @@
   // Maintain Mandelbrot aspect ratio (3.5:2) with letterboxing, scale bitmap during resize
   function onResizeImmediate(){
     devicePixelRatio = window.devicePixelRatio || 1;
+    // Cap DPR at 2 on touch devices for better performance
+    if(isTouchDevice) {
+      devicePixelRatio = Math.min(devicePixelRatio, 2);
+    }
 
     const availW = window.innerWidth;
     const availH = window.innerHeight;
@@ -366,6 +384,8 @@
   const delta = e.deltaY;
   const zoomFactor = Math.exp(delta * 0.0015);
     view.scale *= zoomFactor;
+    // Clamp scale to prevent zooming out too far or in too deep
+    view.scale = Math.max(minScale, Math.min(maxScale, view.scale));
 
     const after = pixelToComplex(mx, my);
     // adjust center so the point under cursor stays fixed
@@ -498,6 +518,22 @@
     }
   });
 
+  // Double-click to zoom in with animation
+  canvasGL.addEventListener('dblclick', function(e){
+    const rect = canvasGL.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * devicePixelRatio;
+    const my = (e.clientY - rect.top) * devicePixelRatio;
+    const complex = pixelToComplex(mx, my);
+    let newScale = view.scale * 0.5;
+    // Clamp to zoom limits
+    newScale = Math.max(minScale, Math.min(maxScale, newScale));
+    // Only animate if scale actually changes (prevents pan-only when at zoom limit)
+    // Use relative threshold for deep zooms
+    if(Math.abs(newScale - view.scale) > view.scale * 0.001){
+      animateView(complex.x, complex.y, newScale);
+    }
+  });
+
   // Touch events for mobile
   canvasGL.addEventListener('touchstart', function(e){
     e.preventDefault();
@@ -515,7 +551,14 @@
         const mx = tx * devicePixelRatio;
         const my = ty * devicePixelRatio;
         const complex = pixelToComplex(mx, my);
-        animateView(complex.x, complex.y, view.scale * 0.5);
+        let newScale = view.scale * 0.5;
+        // Clamp to zoom limits
+        newScale = Math.max(minScale, Math.min(maxScale, newScale));
+        // Only animate if scale actually changes (prevents pan-only when at zoom limit)
+        // Use relative threshold for deep zooms
+        if(Math.abs(newScale - view.scale) > view.scale * 0.001){
+          animateView(complex.x, complex.y, newScale);
+        }
         lastTap = 0; // reset
       } else {
         lastTap = now;
@@ -559,7 +602,9 @@
       
       // Calculate new scale
       const scaleFactor = distance / initialDistance;
-      const newScale = initialScale / scaleFactor;
+      let newScale = initialScale / scaleFactor;
+      // Clamp scale to prevent zooming out too far or in too deep
+      newScale = Math.max(minScale, Math.min(maxScale, newScale));
       
       // Get complex coordinates at pinch center BEFORE scale change
       const beforeComplex = pixelToComplex(touchStart.x, touchStart.y);
