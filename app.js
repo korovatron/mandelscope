@@ -496,8 +496,6 @@
         const cx_px = (x1 + x2) / 2;
         const cy_px = (y1 + y2) / 2;
         const centerComplex = pixelToComplex(cx_px, cy_px);
-        view.cx = centerComplex.x;
-        view.cy = centerComplex.y;
 
         // compute new scale so the rectangle fills the canvas in the larger dimension
   const rectW = (x2 - x1); // device pixels
@@ -508,13 +506,15 @@
   // compute scaleFactor according to selected mode: 'fit' (show whole rect) or 'fill' (rect fills viewport)
   const mode = (typeof modeSelect !== 'undefined' && modeSelect.value) ? modeSelect.value : 'fit';
   const scaleFactor = (mode === 'fill') ? Math.max(rectW / cw, rectH / ch) : Math.min(rectW / cw, rectH / ch);
-  const oldScale = view.scale;
-  view.scale = view.scale * scaleFactor;
-        console.log('Zoom-rect -> rectW,rectH,cw,ch,oldScale,newScale:', rectW, rectH, cw, ch, oldScale, view.scale);
+  let newScale = view.scale * scaleFactor;
+  // Clamp to zoom limits
+  newScale = Math.max(minScale, Math.min(maxScale, newScale));
+        console.log('Zoom-rect -> rectW,rectH,cw,ch,oldScale,newScale:', rectW, rectH, cw, ch, view.scale, newScale);
+        // Animate to the new view
+        animateView(centerComplex.x, centerComplex.y, newScale);
       }
       zoomRect.remove();
       zoomRect = null;
-      requestRender();
     }
   });
 

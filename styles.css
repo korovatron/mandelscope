@@ -1,10 +1,11 @@
 *{box-sizing:border-box;margin:0;padding:0;font-family:Segoe UI, Roboto, Arial, sans-serif}
 html,body,#app{height:100%}
 body{background:#f0f0f0;color:#000;overflow:hidden}
-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:linear-gradient(90deg,#101018,#151526);border-bottom:1px solid #222}
-header h1{font-size:1.1rem}
-.controls{display:flex;gap:10px;align-items:center}
-.controls input[type=range]{width:200px}
+header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:linear-gradient(90deg,#101018,#151526);border-bottom:1px solid #222;color:#eee;flex-wrap:wrap;gap:10px}
+header h1{font-size:1.1rem;margin-right:auto}
+.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.controls label{color:#eee;white-space:nowrap}
+.controls input[type=range]{width:150px;min-width:100px}
 main{position:relative;flex:1;display:flex}
 #canvas-wrap{flex:1;position:relative}
 .canvas-layer{position:absolute;width:100%;height:100%;display:block;cursor:crosshair}
@@ -15,3 +16,11 @@ footer{padding:8px 14px;background:linear-gradient(90deg,#0f0f12,#0b0b0f);font-s
 button{background:#222;border:1px solid #333;color:#ddd;padding:6px 10px;border-radius:4px;cursor:pointer}
 button:hover{background:#2a2a2a}
 .zoom-rect{position:absolute;border:2px dashed #8af;pointer-events:none}
+@media (max-width: 600px){
+  header{padding:8px 10px}
+  header h1{font-size:1rem}
+  .controls{gap:8px}
+  .controls label{font-size:0.85rem}
+  .controls input[type=range]{width:120px;min-width:80px}
+  button{padding:5px 8px;font-size:0.85rem}
+}
