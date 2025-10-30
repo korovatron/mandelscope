@@ -550,17 +550,30 @@
       view.cy += dy * view.scale;
       touchStart = {x: tx, y: ty};
       requestRender();
-    } else if(touches.length === 2 && initialDistance){
-      // Pinch zoom in place (no pan)
+    } else if(touches.length === 2 && initialDistance && touchStart){
+      // Pinch zoom: keep the point between fingers fixed
       const t1 = touches[0], t2 = touches[1];
       const dx = t1.clientX - t2.clientX;
       const dy = t1.clientY - t2.clientY;
       const distance = Math.sqrt(dx*dx + dy*dy);
-      // Use a lower exponent to make zoom less sensitive
-      const zoomExponent = 0.4;
-      const zoomFactor = Math.pow(distance / initialDistance, zoomExponent);
+      
+      // Calculate new scale
+      const scaleFactor = distance / initialDistance;
+      const newScale = initialScale / scaleFactor;
+      
+      // Get complex coordinates at pinch center BEFORE scale change
+      const beforeComplex = pixelToComplex(touchStart.x, touchStart.y);
+      
       // Update scale
-      view.scale = initialScale / zoomFactor;
+      view.scale = newScale;
+      
+      // Get complex coordinates at same pixel position AFTER scale change
+      const afterComplex = pixelToComplex(touchStart.x, touchStart.y);
+      
+      // Adjust view center to compensate (keep pinch point fixed)
+      view.cx += beforeComplex.x - afterComplex.x;
+      view.cy += beforeComplex.y - afterComplex.y;
+      
       requestRender();
     }
   }, {passive: false});
