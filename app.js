@@ -557,16 +557,13 @@
       const dy = t1.clientY - t2.clientY;
       const distance = Math.sqrt(dx*dx + dy*dy);
       const scaleFactor = distance / initialDistance;
+      // Get current complex at pinch center before changing scale
+      const currentComplex = pixelToComplex(touchStart.x, touchStart.y);
+      // Update scale
       view.scale = initialScale / scaleFactor;
-      // Keep center at pinch center
-      const rect = canvasGL.getBoundingClientRect();
-      const cx = (t1.clientX + t2.clientX) / 2 - rect.left;
-      const cy = (t1.clientY + t2.clientY) / 2 - rect.top;
-      const mx = cx * devicePixelRatio;
-      const my = cy * devicePixelRatio;
-      const complex = pixelToComplex(mx, my);
-      view.cx = complex.x;
-      view.cy = complex.y;
+      // Keep the pinch center fixed by setting center to the complex coords
+      view.cx = currentComplex.x;
+      view.cy = currentComplex.y;
       requestRender();
     }
   }, {passive: false});
