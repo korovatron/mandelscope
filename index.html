@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mandelscope — Mandelbrot Explorer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Mandelscope</h1>
+      <div class="controls">
+        <label>Max iterations: <span id="iterVal">500</span></label>
+        <input id="iter" type="range" min="50" max="2000" value="500">
+        <button id="reset">Reset</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- WebGL canvas for GPU rendering -->
+      <div id="canvas-wrap">
+        <canvas id="canvas-gl" class="canvas-layer"></canvas>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
