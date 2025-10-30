@@ -35,7 +35,6 @@
   let touchStart = null;
   let initialDistance = null;
   let initialScale = null;
-  let fixedCenter = null;
 
   function animateView(targetCx, targetCy, targetScale, duration = 300){
     if(animating) return; // or cancel previous?
@@ -530,11 +529,10 @@
       const dy = t1.clientY - t2.clientY;
       initialDistance = Math.sqrt(dx*dx + dy*dy);
       initialScale = view.scale;
-      // Center of pinch
+      // Center of pinch (not used for pan)
       const cx = (t1.clientX + t2.clientX) / 2 - rect.left;
       const cy = (t1.clientY + t2.clientY) / 2 - rect.top;
       touchStart = {x: cx * devicePixelRatio, y: cy * devicePixelRatio};
-      fixedCenter = pixelToComplex(touchStart.x, touchStart.y);
     }
   }, {passive: false});
 
@@ -552,20 +550,17 @@
       view.cy += dy * view.scale;
       touchStart = {x: tx, y: ty};
       requestRender();
-    } else if(touches.length === 2 && initialDistance && fixedCenter){
-      // Pinch zoom
+    } else if(touches.length === 2 && initialDistance){
+      // Pinch zoom in place (no pan)
       const t1 = touches[0], t2 = touches[1];
       const dx = t1.clientX - t2.clientX;
       const dy = t1.clientY - t2.clientY;
       const distance = Math.sqrt(dx*dx + dy*dy);
-      // Use a lower exponent to make zoom less sensitive to small finger movements
+      // Use a lower exponent to make zoom less sensitive
       const zoomExponent = 0.4;
       const zoomFactor = Math.pow(distance / initialDistance, zoomExponent);
       // Update scale
       view.scale = initialScale / zoomFactor;
-      // Keep center fixed to the initial pinch center
-      view.cx = fixedCenter.x;
-      view.cy = fixedCenter.y;
       requestRender();
     }
   }, {passive: false});
@@ -576,7 +571,6 @@
       touchStart = null;
       initialDistance = null;
       initialScale = null;
-      fixedCenter = null;
     }
   }, {passive: false});
 
