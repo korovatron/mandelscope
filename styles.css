@@ -153,6 +153,16 @@ body{background:#100C5C;color:#000;overflow:hidden}
   color:#888;
   font-size:0.9rem;
 }
+.hint a{
+  color:#888;
+  text-decoration:underline;
+}
+.hint a:visited{
+  color:#888;
+}
+.hint a:hover{
+  color:#aaa;
+}
 #title-screen.hidden{
   animation:fadeOut 0.3s ease forwards;
 }
