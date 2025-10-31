@@ -66,7 +66,32 @@
   try { gl = canvasGL.getContext('webgl') || canvasGL.getContext('webgl2'); } catch(e) { gl = null; }
   const iterSlider = document.getElementById('iter');
   const iterVal = document.getElementById('iterVal');
+  const autoIterCheckbox = document.getElementById('auto-iter');
   const resetBtn = document.getElementById('reset');
+  const zoomLevelSpan = document.getElementById('zoom-level');
+  const scaleValueSpan = document.getElementById('scale-value');
+
+  // Detect GPU capabilities
+  let hasDiscreteGPU = false;
+  let gpuInfo = 'Unknown';
+  if(gl){
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if(debugInfo){
+      const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+      gpuInfo = renderer;
+      
+      // Check if it's a discrete GPU vs integrated/software
+      // Discrete: NVIDIA GeForce/RTX/GTX/Quadro, AMD Radeon RX/Vega (desktop), Intel Arc
+      const isDiscreteGPU = /geforce|rtx|gtx|quadro|radeon rx|radeon pro|vega 56|vega 64|rx \d{3,4}|arc a\d{3}/i.test(renderer);
+      const isSoftwareRenderer = /software|swiftshader|llvmpipe|mesa/i.test(renderer);
+      const isIntegrated = /intel.*hd|intel.*uhd|vega \d{1,2}[^\d]|intel.*iris|radeon.*graphics/i.test(renderer);
+      
+      hasDiscreteGPU = isDiscreteGPU && !isSoftwareRenderer && !isIntegrated;
+      
+      console.log('GPU Detected:', renderer);
+      console.log('Discrete GPU:', hasDiscreteGPU);
+    }
+  }
 
   // No UI controls needed
 
@@ -79,10 +104,69 @@
 
   // Zoom limits: maxScale is most zoomed out (large value), minScale is most zoomed in (small value)
   let maxScale = 0.01; // will be set properly on resize (prevent zooming out too far)
-  const minScale = 1e-14; // deep zoom limit (near JavaScript float precision boundary)
+  const minScale = 1e-7; // WebGL single precision limit (~7 significant digits)
 
   let maxIter = Number(iterSlider.value);
+  let isAutoIter = autoIterCheckbox.checked;
   iterVal.textContent = maxIter;
+
+  // Calculate adaptive iteration count based on zoom level
+  function calculateAdaptiveIter(){
+    const zoomDepth = Math.log10(1 / view.scale);
+    
+    if(hasDiscreteGPU){
+      // Powerful GPU: Start high, scale up aggressively to 2000
+      // At scale 1e-2: ~500 iterations
+      // At scale 1e-5: ~1250 iterations
+      // At scale 1e-7: ~2000 iterations (maximum quality)
+      const iter = Math.min(2000, Math.max(100, Math.floor(200 + zoomDepth * 250)));
+      return iter;
+    } else {
+      // Integrated/Software GPU: Start lower, more conservative
+      // At scale 1e-2: ~150 iterations
+      // At scale 1e-7: ~400 iterations
+      const iter = Math.min(2000, Math.max(50, Math.floor(50 + zoomDepth * 50)));
+      return iter;
+    }
+  }
+
+  // Update max iterations (either from slider or auto-calculated)
+  function updateMaxIter(){
+    if(isAutoIter){
+      maxIter = calculateAdaptiveIter();
+      iterSlider.value = maxIter;
+      iterVal.textContent = maxIter;
+      iterSlider.disabled = true;
+    } else {
+      maxIter = Number(iterSlider.value);
+      iterVal.textContent = maxIter;
+      iterSlider.disabled = false;
+    }
+  }
+
+  // Update zoom level display
+  function updateZoomDisplay(){
+    // Calculate zoom magnification relative to initial scale
+    const initialScale = maxScale; // maxScale is set to initial "fit all" scale
+    const magnification = initialScale / view.scale;
+    
+    // Format zoom level
+    let zoomText;
+    if(magnification < 1000){
+      zoomText = magnification.toFixed(1) + '×';
+    } else if(magnification < 1e6){
+      zoomText = (magnification / 1000).toFixed(1) + 'K×';
+    } else if(magnification < 1e9){
+      zoomText = (magnification / 1e6).toFixed(1) + 'M×';
+    } else {
+      zoomText = (magnification / 1e9).toFixed(1) + 'G×';
+    }
+    
+    zoomLevelSpan.textContent = zoomText;
+    
+    // Format scale in scientific notation
+    scaleValueSpan.textContent = view.scale.toExponential(2);
+  }
 
   let devicePixelRatio = window.devicePixelRatio || 1;
   // Cap DPR at 2 on touch devices for better performance
@@ -121,6 +205,8 @@
       view.cx = animFrom.cx + (animTo.cx - animFrom.cx) * easeT;
       view.cy = animFrom.cy + (animTo.cy - animFrom.cy) * easeT;
       view.scale = animFrom.scale + (animTo.scale - animFrom.scale) * easeT;
+      updateMaxIter(); // Update iterations during animation
+      updateZoomDisplay(); // Update zoom level display
       requestRender();
       if(t < 1){
         requestAnimationFrame(step);
@@ -136,6 +222,8 @@
     view.cy = 0;
     view.scale = Math.max(3.5 / canvasGL.width, 2.5 / canvasGL.height);
     maxScale = view.scale; // Update maximum scale to current "fit all" scale
+    updateMaxIter();
+    updateZoomDisplay();
     requestRender();
   }
 
@@ -293,8 +381,10 @@
   // Progressive renderer (chunked by rows)
   // Two rendering paths: WebGL (fast) and Worker (CPU fallback)
   // WebGL renderer: fragment shader computes color per pixel
+  // Helper to split a double into high and low 32-bit floats (Veltkamp-Dekker splitting)
   // Use var here to avoid temporal-dead-zone errors when calling render synchronously during startup/resize
   var glProgram = null;
+  
   function createGLProgram(){
     if(!gl) return null;
   const vs = `
@@ -380,16 +470,20 @@
 
   function glRender(){
     if(!gl) return false;
-    if(!glProgram) glProgram = createGLProgram();
-    if(!glProgram){
+    
+    const program = glProgram || (glProgram = createGLProgram());
+    
+    if(!program){
       console.warn('WebGL program not available');
       return false;
     }
+    
     // show gl canvas
     canvasGL.style.zIndex = 1; canvasGL.style.display = 'block';
 
     gl.viewport(0,0,canvasGL.width, canvasGL.height);
-    gl.useProgram(glProgram);
+    gl.useProgram(program);
+    
     // quad
     const posBuf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
@@ -398,15 +492,17 @@
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
 
-    const u_center = gl.getUniformLocation(glProgram, 'u_center');
-    const u_scale = gl.getUniformLocation(glProgram, 'u_scale');
-    const u_iter = gl.getUniformLocation(glProgram, 'u_iter');
-    const u_resolution = gl.getUniformLocation(glProgram, 'u_resolution');
+    // Set shader uniforms
+    const u_center = gl.getUniformLocation(program, 'u_center');
+    const u_scale = gl.getUniformLocation(program, 'u_scale');
+    const u_iter = gl.getUniformLocation(program, 'u_iter');
+    const u_resolution = gl.getUniformLocation(program, 'u_resolution');
 
     gl.uniform2f(u_center, view.cx, view.cy);
     gl.uniform1f(u_scale, view.scale);
     gl.uniform1i(u_iter, maxIter);
     gl.uniform2f(u_resolution, canvasGL.width, canvasGL.height);
+    
     // clear first for a deterministic visual baseline
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
@@ -415,11 +511,13 @@
     try{ gl.flush(); }catch(e){ console.warn('gl.flush() threw', e); }
     const glErr = gl.getError ? gl.getError() : -1;
     if(typeof glErr !== 'undefined' && glErr !== gl.NO_ERROR){ console.error('WebGL error after drawArrays:', glErr); }
+    
     return true;
   }
 
   async function render(){
     glRender();
+    updateZoomDisplay();
   }
 
   function requestRender(){
@@ -454,6 +552,8 @@
     view.cx += before.x - after.x;
     view.cy += before.y - after.y;
 
+    updateMaxIter(); // Update iterations when zooming
+    updateZoomDisplay(); // Update zoom level display
     requestRender();
   }, {passive:false});
   
@@ -684,6 +784,8 @@
       view.cx += beforeComplex.x - afterComplex.x;
       view.cy += beforeComplex.y - afterComplex.y;
       
+      updateMaxIter(); // Update iterations when pinch zooming
+      updateZoomDisplay(); // Update zoom level display
       requestRender();
     }
   }, {passive: false});
@@ -711,10 +813,18 @@
   }, {passive: false});
 
   // UI controls
-  iterSlider.addEventListener('input', function(){
-    maxIter = Number(iterSlider.value);
-    iterVal.textContent = maxIter;
+  autoIterCheckbox.addEventListener('change', function(){
+    isAutoIter = autoIterCheckbox.checked;
+    updateMaxIter();
     requestRender();
+  });
+
+  iterSlider.addEventListener('input', function(){
+    if(!isAutoIter){
+      maxIter = Number(iterSlider.value);
+      iterVal.textContent = maxIter;
+      requestRender();
+    }
   });
 
   resetBtn.addEventListener('click', function(){
@@ -725,6 +835,10 @@
   function debounce(fn, t){
     let id = null; return (...a)=>{ if(id) clearTimeout(id); id = setTimeout(()=>fn(...a), t); };
   }
+
+  // Initialize adaptive iterations and zoom display
+  updateMaxIter();
+  updateZoomDisplay();
 
   // initial render
   requestRender();

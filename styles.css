@@ -151,12 +151,18 @@ header h1{font-size:1.1rem;margin-right:auto;display:flex;align-items:center;gap
 .logo{width:28px;height:28px;vertical-align:middle}
 .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .controls label{color:#eee;white-space:nowrap}
+.controls input[type=checkbox]{cursor:pointer;width:16px;height:16px;margin-right:4px;vertical-align:middle}
 .controls input[type=range]{width:150px;min-width:100px}
+.controls input[type=range]:disabled{opacity:0.5;cursor:not-allowed}
 main{position:relative;flex:1;display:flex}
 #canvas-wrap{flex:1;position:relative}
 .canvas-layer{position:absolute;width:100%;height:100%;display:block;cursor:crosshair}
 #canvas-wrap canvas{width:100%;height:100%}
 #canvas{flex:1;display:block;width:100%;height:100%;cursor:crosshair}
+#zoom-info{position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.85);padding:10px 14px;border-radius:6px;font-size:0.9rem;color:#eee;font-family:monospace;line-height:1.6;pointer-events:none;z-index:10;border:1px solid rgba(255,255,255,0.2)}
+#zoom-info div{white-space:nowrap}
+#zoom-level{color:#8af;font-weight:bold}
+#scale-value{color:#f8a;font-weight:bold}
 #hud{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,0.45);padding:8px 10px;border-radius:6px;font-size:0.85rem}
 footer{padding:8px 14px;background:linear-gradient(90deg,#0f0f12,#0b0b0f);font-size:0.9rem;color:#9aa}
 button{background:#222;border:1px solid #333;color:#ddd;padding:6px 10px;border-radius:4px;cursor:pointer}

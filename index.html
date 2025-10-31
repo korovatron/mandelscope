@@ -55,8 +55,12 @@
         Mandelscope
       </h1>
       <div class="controls">
+        <label>
+          <input id="auto-iter" type="checkbox" checked>
+          Auto
+        </label>
         <label>Max iterations: <span id="iterVal">500</span></label>
-        <input id="iter" type="range" min="50" max="2000" value="500">
+        <input id="iter" type="range" min="50" max="10000" value="500">
         <button id="reset">Reset</button>
       </div>
     </header>
@@ -65,6 +69,10 @@
       <!-- WebGL canvas for GPU rendering -->
       <div id="canvas-wrap">
         <canvas id="canvas-gl" class="canvas-layer"></canvas>
+        <div id="zoom-info">
+          <div>Zoom: <span id="zoom-level">1×</span></div>
+          <div>Scale: <span id="scale-value">0</span></div>
+        </div>
       </div>
     </main>
 
