@@ -980,9 +980,9 @@
       const complex = pixelToComplex(mx, my);
       longPressPos = {x: touches[0].clientX, y: touches[0].clientY, cx: complex.x, cy: complex.y, mx_css: tx, my_css: ty};
       longPressTimer = setTimeout(function(){
-        // Long press detected - show context menu (only in Mandelbrot mode)
-        if(longPressPos && !isJuliaMode){
-          showContextMenu(longPressPos.x, longPressPos.y, longPressPos.cx, longPressPos.cy, longPressPos.mx_css, longPressPos.my_css);
+        // Long press detected - show context menu
+        if(longPressPos){
+          showContextMenu(longPressPos.x, longPressPos.y, longPressPos.cx, longPressPos.cy, longPressPos.mx_css, longPressPos.my_css, true);
           touchStart = null; // Cancel pan
         }
       }, 500); // 500ms long press
@@ -1411,7 +1411,7 @@
   // Context menu state
   let contextMenuPos = {x: 0, y: 0, cx: 0, cy: 0, mx_css: 0, my_css: 0};
 
-  function showContextMenu(x, y, cx, cy, mx_css, my_css){
+  function showContextMenu(x, y, cx, cy, mx_css, my_css, isTouch = false){
     contextMenuPos = {x, y, cx, cy, mx_css, my_css};
     
     // Show/hide menu items based on mode
@@ -1434,10 +1434,19 @@
     
     contextMenu.classList.remove('hidden');
     
-    // Position menu below and to the right of cursor
-    // Small offset so cursor doesn't immediately hover over first item
-    contextMenu.style.left = (x + 5) + 'px';
-    contextMenu.style.top = (y + 5) + 'px';
+    // Position menu based on input type
+    if(isTouch){
+      // For touch: position above and to the left so it's not hidden under finger
+      // Offset upward by menu height (~80-120px depending on items) plus some padding
+      const menuHeight = contextMenu.offsetHeight || 100;
+      contextMenu.style.left = (x - 100) + 'px'; // Left of finger
+      contextMenu.style.top = (y - menuHeight - 20) + 'px'; // Above finger
+    } else {
+      // For mouse: position below and to the right of cursor
+      // Small offset so cursor doesn't immediately hover over first item
+      contextMenu.style.left = (x + 5) + 'px';
+      contextMenu.style.top = (y + 5) + 'px';
+    }
   }
 
   function hideContextMenu(){
