@@ -1,4 +1,13 @@
 (function(){
+  // Register service worker for PWA
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('Service Worker registered:', reg))
+        .catch(err => console.log('Service Worker registration failed:', err));
+    });
+  }
+
   // Title screen handling
   const titleScreen = document.getElementById('title-screen');
   const startBtn = document.getElementById('start-btn');
@@ -1043,13 +1052,15 @@
     menuToggle.classList.toggle('active');
   });
 
-  // Close settings panel when clicking outside
-  document.addEventListener('click', function(e){
+  // Close settings panel when clicking/touching outside
+  function closeSettingsIfOutside(e){
     if(!settingsPanel.contains(e.target) && !menuToggle.contains(e.target)){
       settingsPanel.classList.add('hidden');
       menuToggle.classList.remove('active');
     }
-  });
+  }
+  document.addEventListener('click', closeSettingsIfOutside);
+  document.addEventListener('touchstart', closeSettingsIfOutside);
 
   // Mode toggle
   function switchToJulia(cx, cy){
@@ -1116,12 +1127,14 @@
     contextMenu.classList.add('hidden');
   }
 
-  // Hide context menu when clicking elsewhere
-  document.addEventListener('click', function(e){
+  // Hide context menu when clicking/touching elsewhere
+  function hideContextMenuIfOutside(e){
     if(!contextMenu.contains(e.target)){
       hideContextMenu();
     }
-  });
+  }
+  document.addEventListener('click', hideContextMenuIfOutside);
+  document.addEventListener('touchstart', hideContextMenuIfOutside);
 
   // Context menu actions
   menuZoomRect.addEventListener('click', function(){
