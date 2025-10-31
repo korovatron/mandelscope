@@ -1,4 +1,65 @@
 (function(){
+  // Title screen handling
+  const titleScreen = document.getElementById('title-screen');
+  const startBtn = document.getElementById('start-btn');
+  const controlsBtn = document.getElementById('controls-btn');
+  const controlsOverlay = document.getElementById('controls-overlay');
+  const closeControlsBtn = document.getElementById('close-controls-btn');
+  const titleLogoCanvas = document.getElementById('title-logo-canvas');
+  
+  // Load and draw title image with high-quality smoothing
+  const titleImage = new Image();
+  titleImage.src = 'titleImage.png';
+  titleImage.onload = function(){
+    const width = titleImage.width * 0.75;
+    const height = titleImage.height * 0.75;
+    
+    titleLogoCanvas.width = width;
+    titleLogoCanvas.height = height;
+    titleLogoCanvas.style.width = width + 'px';
+    titleLogoCanvas.style.height = height + 'px';
+    
+    const ctx = titleLogoCanvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(titleImage, 0, 0, width, height);
+  };
+  
+  function dismissTitleScreen(){
+    titleScreen.classList.add('hidden');
+    setTimeout(() => {
+      titleScreen.style.display = 'none';
+    }, 300);
+  }
+  
+  // Controls overlay handlers
+  controlsBtn.addEventListener('click', function(){
+    controlsOverlay.classList.remove('hidden');
+  });
+  
+  closeControlsBtn.addEventListener('click', function(){
+    controlsOverlay.classList.add('hidden');
+  });
+  
+  // Click overlay background to close
+  controlsOverlay.addEventListener('click', function(e){
+    if(e.target === controlsOverlay){
+      controlsOverlay.classList.add('hidden');
+    }
+  });
+  
+  // Click/tap button to start
+  startBtn.addEventListener('click', dismissTitleScreen);
+  
+  // Space or Enter to start
+  document.addEventListener('keydown', function onKeyDown(e){
+    if(e.key === ' ' || e.key === 'Enter'){
+      e.preventDefault();
+      dismissTitleScreen();
+      document.removeEventListener('keydown', onKeyDown);
+    }
+  });
+
   // Mandelbrot explorer with WebGL
   const canvasGL = document.getElementById('canvas-gl');
   let gl = null;

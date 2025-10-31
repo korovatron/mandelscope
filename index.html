@@ -8,10 +8,50 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- Title Screen -->
+  <div id="title-screen">
+    <div class="title-content">
+      <canvas id="title-logo-canvas" class="title-logo"></canvas>
+      <h1>Mandelscope</h1>
+      <p class="subtitle">Explore the Mandelbrot Set</p>
+      
+      <div class="title-buttons">
+        <button id="start-btn" class="start-button">Start Exploring</button>
+        <button id="controls-btn" class="controls-button">Controls</button>
+      </div>
+      <p class="hint">Written by Neil Kendall 2025</p>
+    </div>
+    
+    <!-- Controls Overlay (hidden by default) -->
+    <div id="controls-overlay" class="controls-overlay hidden">
+      <div class="controls-content">
+        <h2>Controls</h2>
+        <div class="control-group">
+          <strong>Mouse:</strong>
+          <ul>
+            <li>Left-click and drag to pan</li>
+            <li>Right-click and drag to select zoom area</li>
+            <li>Double-click to zoom in</li>
+            <li>Mouse wheel to zoom in/out</li>
+          </ul>
+        </div>
+        <div class="control-group">
+          <strong>Touch:</strong>
+          <ul>
+            <li>Pinch to zoom</li>
+            <li>Double-tap to zoom in</li>
+            <li>Drag to pan</li>
+          </ul>
+        </div>
+        <button id="close-controls-btn" class="close-button">Close</button>
+      </div>
+    </div>
+    </div>
+  </div>
+
   <div id="app">
     <header>
       <h1>
-        <img src="logo.svg" alt="Mandelscope" class="logo">
         Mandelscope
       </h1>
       <div class="controls">
