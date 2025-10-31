@@ -162,7 +162,7 @@
   };
 
   // Zoom limits: maxScale is most zoomed out (large value), minScale is most zoomed in (small value)
-  let maxScale = 0.01; // will be set properly on resize (prevent zooming out too far)
+  let maxScale = 8e-2; // Maximum zoom out level (0.08)
   const minScale = 1e-7; // WebGL single precision limit (~7 significant digits)
 
   let maxIter = Number(iterSlider.value);
@@ -300,14 +300,13 @@
       // Julia sets are centered at origin with smaller initial view
       view.cx = 0;
       view.cy = 0;
-      view.scale = Math.max(4.0 / canvasGL.width, 4.0 / canvasGL.height);
+      view.scale = Math.min(maxScale, Math.max(4.0 / canvasGL.width, 4.0 / canvasGL.height));
     } else {
       // Mandelbrot set centered at -0.75, 0
       view.cx = -0.75;
       view.cy = 0;
-      view.scale = Math.max(3.5 / canvasGL.width, 2.5 / canvasGL.height);
+      view.scale = Math.min(maxScale, Math.max(3.5 / canvasGL.width, 2.5 / canvasGL.height));
     }
-    maxScale = view.scale; // Update maximum scale to current "fit all" scale
     updateMaxIter();
     updateZoomDisplay();
     requestRender();
@@ -1296,10 +1295,12 @@
     // Zoom with +/-
     if(keysPressed.has('+') || keysPressed.has('=')){
       view.scale *= zoomSpeed;
+      view.scale = Math.max(minScale, view.scale); // Prevent zooming in too far
       changed = true;
     }
     if(keysPressed.has('-') || keysPressed.has('_')){
       view.scale /= zoomSpeed;
+      view.scale = Math.min(maxScale, view.scale); // Prevent zooming out too far
       changed = true;
     }
 
