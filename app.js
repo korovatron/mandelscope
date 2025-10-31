@@ -632,8 +632,17 @@
     // Track when a pinch gesture ends
     if(e.touches.length < 2 && initialDistance !== null){
       lastPinchEnd = Date.now();
+      initialDistance = null;
+      initialScale = null;
     }
-    if(e.touches.length === 0){
+    if(e.touches.length === 1){
+      // One finger remains after pinch - reset touchStart to that finger's position
+      const rect = canvasGL.getBoundingClientRect();
+      touchStart = {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top
+      };
+    } else if(e.touches.length === 0){
       touchStart = null;
       initialDistance = null;
       initialScale = null;
