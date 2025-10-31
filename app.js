@@ -938,8 +938,11 @@
       touchStart = {x: tx, y: ty};
       
       // Start long press timer
-      const mx = tx * devicePixelRatio;
-      const my = ty * devicePixelRatio;
+      // Calculate actual CSS to canvas pixel ratio (accounts for throttling on mobile)
+      const actualRatioX = canvasGL.width / canvasGL.clientWidth;
+      const actualRatioY = canvasGL.height / canvasGL.clientHeight;
+      const mx = tx * actualRatioX;
+      const my = ty * actualRatioY;
       const complex = pixelToComplex(mx, my);
       longPressPos = {x: touches[0].clientX, y: touches[0].clientY, cx: complex.x, cy: complex.y, mx_css: tx, my_css: ty};
       longPressTimer = setTimeout(function(){
@@ -990,6 +993,10 @@
     }
   }, {passive: false});
 
+  // Throttle touch move events to prevent iPad from being overwhelmed
+  let lastTouchMoveTime = 0;
+  let pendingTouchMove = null;
+
   canvasGL.addEventListener('touchmove', function(e){
     e.preventDefault();
     // Cancel long press if finger moves
@@ -997,16 +1004,28 @@
       clearTimeout(longPressTimer);
       longPressTimer = null;
     }
+    
+    // Throttle: only process touch moves every 16ms (60fps max)
+    const now = Date.now();
+    if(now - lastTouchMoveTime < 16){
+      // Store the event to process later
+      pendingTouchMove = e;
+      return;
+    }
+    lastTouchMoveTime = now;
+    
     const touches = e.touches;
     if(touches.length === 1 && touchStart){
       // Pan - but only if we're not right after a pinch gesture
-      const now = Date.now();
       if(now - lastPinchEnd > 100){
         const rect = canvasGL.getBoundingClientRect();
         const tx = touches[0].clientX - rect.left;
         const ty = touches[0].clientY - rect.top;
-        const dx = (tx - touchStart.x) * devicePixelRatio;
-        const dy = (ty - touchStart.y) * devicePixelRatio;
+        // Use actual canvas to CSS pixel ratio (accounts for throttling)
+        const actualRatioX = canvasGL.width / canvasGL.clientWidth;
+        const actualRatioY = canvasGL.height / canvasGL.clientHeight;
+        const dx = (tx - touchStart.x) * actualRatioX;
+        const dy = (ty - touchStart.y) * actualRatioY;
         view.cx -= dx * view.scale;
         view.cy += dy * view.scale;
         touchStart = {x: tx, y: ty};
