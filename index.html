@@ -4,12 +4,16 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Mandelscope — Mandelbrot Explorer</title>
+  <link rel="icon" type="image/svg+xml" href="logo.svg">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div id="app">
     <header>
-      <h1>Mandelscope</h1>
+      <h1>
+        <img src="logo.svg" alt="Mandelscope" class="logo">
+        Mandelscope
+      </h1>
       <div class="controls">
         <label>Max iterations: <span id="iterVal">500</span></label>
         <input id="iter" type="range" min="50" max="2000" value="500">

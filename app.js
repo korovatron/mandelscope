@@ -44,6 +44,7 @@
   let touchStart = null;
   let initialDistance = null;
   let initialScale = null;
+  let lastPinchEnd = 0; // Track when pinch ended to prevent accidental pan
 
   function animateView(targetCx, targetCy, targetScale, duration = 300){
     if(animating) return; // or cancel previous?
@@ -583,16 +584,19 @@
     e.preventDefault();
     const touches = e.touches;
     if(touches.length === 1 && touchStart){
-      // Pan
-      const rect = canvasGL.getBoundingClientRect();
-      const tx = touches[0].clientX - rect.left;
-      const ty = touches[0].clientY - rect.top;
-      const dx = (tx - touchStart.x) * devicePixelRatio;
-      const dy = (ty - touchStart.y) * devicePixelRatio;
-      view.cx -= dx * view.scale;
-      view.cy += dy * view.scale;
-      touchStart = {x: tx, y: ty};
-      requestRender();
+      // Pan - but only if we're not right after a pinch gesture
+      const now = Date.now();
+      if(now - lastPinchEnd > 100){
+        const rect = canvasGL.getBoundingClientRect();
+        const tx = touches[0].clientX - rect.left;
+        const ty = touches[0].clientY - rect.top;
+        const dx = (tx - touchStart.x) * devicePixelRatio;
+        const dy = (ty - touchStart.y) * devicePixelRatio;
+        view.cx -= dx * view.scale;
+        view.cy += dy * view.scale;
+        touchStart = {x: tx, y: ty};
+        requestRender();
+      }
     } else if(touches.length === 2 && initialDistance && touchStart){
       // Pinch zoom: keep the point between fingers fixed
       const t1 = touches[0], t2 = touches[1];
@@ -625,6 +629,10 @@
 
   canvasGL.addEventListener('touchend', function(e){
     e.preventDefault();
+    // Track when a pinch gesture ends
+    if(e.touches.length < 2 && initialDistance !== null){
+      lastPinchEnd = Date.now();
+    }
     if(e.touches.length === 0){
       touchStart = null;
       initialDistance = null;
