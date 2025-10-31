@@ -46,7 +46,14 @@ body{background:#100C5C;color:#000;overflow:hidden}
 .subtitle{
   font-size:1.2rem;
   color:#aaa;
+  margin-bottom:15px;
+}
+.equation{
+  font-size:1.5rem;
+  color:#8af;
+  font-family:'Times New Roman', serif;
   margin-bottom:40px;
+  font-style:italic;
 }
 .title-buttons{
   display:flex;
@@ -152,13 +159,13 @@ body{background:#100C5C;color:#000;overflow:hidden}
 }
 @keyframes fadeOut{to{opacity:0;visibility:hidden}}
 header{position:absolute;top:env(safe-area-inset-top);left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;padding-left:max(14px, env(safe-area-inset-left));padding-right:max(14px, env(safe-area-inset-right));background:transparent;color:#eee;z-index:50;pointer-events:none}
-header h1{font-size:1.1rem;display:flex;align-items:center;gap:8px;color:#8af;text-shadow:0 2px 8px rgba(0,0,0,0.8)}
+header h1{font-size:1.1rem;display:flex;align-items:center;gap:8px;color:#8af;text-shadow:0 0 4px rgba(0,0,0,1),0 0 8px rgba(0,0,0,1),0 0 12px rgba(0,0,0,0.9),0 2px 8px rgba(0,0,0,0.8);filter:drop-shadow(0 0 6px rgba(0,0,0,0.9))}
 header button{pointer-events:auto}
 .logo{width:28px;height:28px;vertical-align:middle}
 
 /* Hamburger Menu */
-.menu-toggle{background:transparent;border:none;cursor:pointer;padding:8px;display:flex;flex-direction:column;gap:4px;width:32px;height:32px;justify-content:center;align-items:center}
-.menu-toggle span{display:block;width:20px;height:2px;background:#8af;transition:all 0.3s;border-radius:2px}
+.menu-toggle{background:rgba(0,0,0,0.6);border:none;cursor:pointer;padding:8px;display:flex;flex-direction:column;gap:4px;width:32px;height:32px;justify-content:center;align-items:center;border-radius:4px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.menu-toggle span{display:block;width:20px;height:2px;background:#8af;transition:all 0.3s;border-radius:2px;box-shadow:0 1px 2px rgba(0,0,0,0.8)}
 .menu-toggle:hover span{background:#adf}
 .menu-toggle.active span:nth-child(1){transform:translateY(6px) rotate(45deg)}
 .menu-toggle.active span:nth-child(2){opacity:0}

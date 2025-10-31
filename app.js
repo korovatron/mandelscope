@@ -1228,6 +1228,10 @@
       }
       
       if(loc){
+        // Close hamburger menu
+        settingsPanel.classList.add('hidden');
+        menuToggle.classList.remove('active');
+        
         // Switch to Mandelbrot mode if in Julia mode
         if(isJuliaMode){
           switchToMandelbrot();
@@ -1666,6 +1670,10 @@
       }
       
       if(julia){
+        // Close hamburger menu
+        settingsPanel.classList.add('hidden');
+        menuToggle.classList.remove('active');
+        
         // Switch to Julia mode with the specified c value
         juliaC.x = julia.c_real;
         juliaC.y = julia.c_imag;
