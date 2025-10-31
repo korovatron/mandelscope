@@ -296,13 +296,48 @@
     // Mandelbrot aspect: real 3.5, imag 2, ratio 1.75
     const mandelbrotAspect = 3.5 / 2;
 
+    // Detect mobile devices (touch-only)
+    const isMobile = ('ontouchstart' in window) && !window.matchMedia('(pointer: fine)').matches;
+    
+    // Cap resolution for mobile devices to improve performance
+    // Desktop: use full resolution with DPR
+    // Mobile: cap at 1920×1080 for performance on large tablets
+    let targetWidth = Math.floor(availW * devicePixelRatio);
+    let targetHeight = Math.floor(availH * devicePixelRatio);
+    
+    if(isMobile){
+      const maxMobilePixels = 1920 * 1080; // ~2 million pixels
+      const currentPixels = targetWidth * targetHeight;
+      if(currentPixels > maxMobilePixels){
+        const scale = Math.sqrt(maxMobilePixels / currentPixels);
+        targetWidth = Math.floor(targetWidth * scale);
+        targetHeight = Math.floor(targetHeight * scale);
+      }
+    }
+
     // set canvas size to match window for full coverage and dynamic resolution
-    canvasGL.width = Math.floor(availW * devicePixelRatio);
-    canvasGL.height = Math.floor(availH * devicePixelRatio);
+    canvasGL.width = targetWidth;
+    canvasGL.height = targetHeight;
     canvasGL.style.width = availW + 'px';
     canvasGL.style.height = availH + 'px';
     canvasGL.style.left = '0px';
     canvasGL.style.top = '0px';
+
+    // Update debug info
+    const debugScreen = document.getElementById('debug-screen');
+    const debugDpr = document.getElementById('debug-dpr');
+    const debugCalc = document.getElementById('debug-calc');
+    const debugCanvas = document.getElementById('debug-canvas');
+    const debugDevice = document.getElementById('debug-device');
+    const debugPixels = document.getElementById('debug-pixels');
+    
+    if(debugScreen) debugScreen.textContent = `${availW}×${availH}`;
+    if(debugDpr) debugDpr.textContent = devicePixelRatio.toFixed(2);
+    if(debugCalc) debugCalc.textContent = `${Math.floor(availW * devicePixelRatio)}×${Math.floor(availH * devicePixelRatio)}`;
+    if(debugCanvas) debugCanvas.textContent = `${targetWidth}×${targetHeight}`;
+    if(debugDevice) debugDevice.textContent = isMobile ? 'Mobile (throttled)' : 'Desktop (full)';
+    if(debugPixels) debugPixels.textContent = `${(targetWidth * targetHeight / 1000000).toFixed(1)}M`;
+
 
     // adjust view.scale so the entire Mandelbrot set fits the canvas
     if(!resize._initialized){
