@@ -1,4 +1,13 @@
 (function(){
+  // Fix for iOS PWA viewport height - Calculate actual viewport height
+  function setActualVH(){
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--actual-vh', `${window.innerHeight}px`);
+  }
+  setActualVH();
+  window.addEventListener('resize', setActualVH);
+  window.addEventListener('orientationchange', setActualVH);
+
   // Register service worker for PWA
   if('serviceWorker' in navigator){
     window.addEventListener('load', () => {
