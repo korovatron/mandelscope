@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Mandelscope — Mandelbrot Explorer</title>
   <link rel="icon" type="image/svg+xml" href="logo.svg">
   <link rel="stylesheet" href="styles.css">
@@ -54,16 +56,32 @@
       <h1>
         Mandelscope
       </h1>
-      <div class="controls">
-        <label>
-          <input id="auto-iter" type="checkbox" checked>
-          Auto
-        </label>
-        <label>Max iterations: <span id="iterVal">500</span></label>
-        <input id="iter" type="range" min="50" max="10000" value="500">
-        <button id="reset">Reset</button>
-      </div>
+      <button id="menu-toggle" class="menu-toggle" aria-label="Settings">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
     </header>
+
+    <!-- Settings Panel -->
+    <div id="settings-panel" class="settings-panel hidden">
+      <div class="settings-content">
+        <h3>Settings</h3>
+        <div class="setting-group">
+          <label>
+            <input id="auto-iter" type="checkbox" checked>
+            Auto iterations
+          </label>
+        </div>
+        <div class="setting-group">
+          <label>Max iterations: <span id="iterVal">500</span></label>
+          <input id="iter" type="range" min="50" max="10000" value="500">
+        </div>
+        <div class="setting-group">
+          <button id="reset" class="reset-btn">Reset View</button>
+        </div>
+      </div>
+    </div>
 
     <main>
       <!-- WebGL canvas for GPU rendering -->
@@ -72,6 +90,17 @@
         <div id="zoom-info">
           <div>Zoom: <span id="zoom-level">1×</span></div>
           <div>Scale: <span id="scale-value">0</span></div>
+        </div>
+        <div id="julia-info" class="hidden">
+          <div>Julia Set</div>
+          <div>c = <span id="julia-c">0 + 0i</span></div>
+          <button id="back-to-mandelbrot" class="back-btn-inline">← Back to Mandelbrot</button>
+        </div>
+        
+        <!-- Context Menu -->
+        <div id="context-menu" class="context-menu hidden">
+          <div class="context-menu-item" id="menu-zoom-rect">Zoom to Rectangle</div>
+          <div class="context-menu-item" id="menu-show-julia">Show Julia Set</div>
         </div>
       </div>
     </main>

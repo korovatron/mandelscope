@@ -1,6 +1,7 @@
 *{box-sizing:border-box;margin:0;padding:0;font-family:Segoe UI, Roboto, Arial, sans-serif}
-html,body,#app{height:100%}
-body{background:#f0f0f0;color:#000;overflow:hidden}
+html,body,#app{height:100%;height:100vh;height:100dvh}
+#app{display:flex;flex-direction:column}
+body{background:#f0f0f0;color:#000;overflow:hidden;padding:0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 
 /* Title Screen */
 #title-screen{
@@ -146,28 +147,61 @@ body{background:#f0f0f0;color:#000;overflow:hidden}
   animation:fadeOut 0.3s ease forwards;
 }
 @keyframes fadeOut{to{opacity:0;visibility:hidden}}
-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:linear-gradient(90deg,#101018,#151526);border-bottom:1px solid #222;color:#eee;flex-wrap:wrap;gap:10px}
-header h1{font-size:1.1rem;margin-right:auto;display:flex;align-items:center;gap:8px}
+header{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;padding-left:max(14px, env(safe-area-inset-left));padding-right:max(14px, env(safe-area-inset-right));padding-top:max(10px, env(safe-area-inset-top));background:transparent;color:#eee;z-index:50;pointer-events:none}
+header h1{font-size:1.1rem;display:flex;align-items:center;gap:8px;color:#8af;text-shadow:0 2px 8px rgba(0,0,0,0.8)}
+header button{pointer-events:auto}
 .logo{width:28px;height:28px;vertical-align:middle}
-.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.controls label{color:#eee;white-space:nowrap}
-.controls input[type=checkbox]{cursor:pointer;width:16px;height:16px;margin-right:4px;vertical-align:middle}
-.controls input[type=range]{width:150px;min-width:100px}
-.controls input[type=range]:disabled{opacity:0.5;cursor:not-allowed}
-main{position:relative;flex:1;display:flex}
+
+/* Hamburger Menu */
+.menu-toggle{background:transparent;border:none;cursor:pointer;padding:8px;display:flex;flex-direction:column;gap:4px;width:32px;height:32px;justify-content:center;align-items:center}
+.menu-toggle span{display:block;width:20px;height:2px;background:#8af;transition:all 0.3s;border-radius:2px}
+.menu-toggle:hover span{background:#adf}
+.menu-toggle.active span:nth-child(1){transform:translateY(6px) rotate(45deg)}
+.menu-toggle.active span:nth-child(2){opacity:0}
+.menu-toggle.active span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+
+/* Settings Panel */
+.settings-panel{position:absolute;top:50px;right:12px;background:rgba(0,0,0,0.95);border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:0;min-width:280px;z-index:1000;box-shadow:0 4px 20px rgba(0,0,0,0.7)}
+.settings-content{padding:16px}
+.settings-content h3{color:#8af;margin-bottom:16px;font-size:1.1rem;border-bottom:1px solid rgba(138,170,255,0.3);padding-bottom:8px}
+.setting-group{margin-bottom:16px}
+.setting-group:last-child{margin-bottom:0}
+.setting-group label{color:#eee;display:block;margin-bottom:6px;font-size:0.9rem}
+.setting-group input[type=checkbox]{cursor:pointer;width:16px;height:16px;margin-right:8px;vertical-align:middle}
+.setting-group input[type=range]{width:100%;cursor:pointer}
+.setting-group input[type=range]:disabled{opacity:0.5;cursor:not-allowed}
+.reset-btn{width:100%;background:#667eea;color:#fff;border:none;padding:8px;border-radius:4px;cursor:pointer;font-size:0.9rem;transition:background 0.2s}
+.reset-btn:hover{background:#764ba2}
+main{position:relative;flex:1;display:flex;margin-left:calc(-1 * env(safe-area-inset-left));margin-right:calc(-1 * env(safe-area-inset-right));margin-bottom:calc(-1 * env(safe-area-inset-bottom))}
 #canvas-wrap{flex:1;position:relative}
 .canvas-layer{position:absolute;width:100%;height:100%;display:block;cursor:crosshair}
 #canvas-wrap canvas{width:100%;height:100%}
 #canvas{flex:1;display:block;width:100%;height:100%;cursor:crosshair}
-#zoom-info{position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.85);padding:10px 14px;border-radius:6px;font-size:0.9rem;color:#eee;font-family:monospace;line-height:1.6;pointer-events:none;z-index:10;border:1px solid rgba(255,255,255,0.2)}
+#zoom-info{position:absolute;top:max(42px, calc(env(safe-area-inset-top) + 32px));left:max(12px, env(safe-area-inset-left));background:rgba(0,0,0,0.85);padding:10px 14px;border-radius:6px;font-size:0.9rem;color:#eee;font-family:monospace;line-height:1.6;pointer-events:none;z-index:10;border:1px solid rgba(255,255,255,0.2);opacity:1;transition:opacity 0.5s ease}
+#zoom-info.fade-out{opacity:0}
 #zoom-info div{white-space:nowrap}
 #zoom-level{color:#8af;font-weight:bold}
 #scale-value{color:#f8a;font-weight:bold}
+#julia-info{position:absolute;bottom:max(12px, env(safe-area-inset-bottom));left:max(12px, env(safe-area-inset-left));background:rgba(0,0,0,0.85);padding:10px 14px;border-radius:6px;font-size:0.9rem;color:#eee;font-family:monospace;line-height:1.6;pointer-events:auto;z-index:10;border:1px solid rgba(138,170,255,0.4)}
+#julia-info div{white-space:nowrap}
+#julia-info .hint-text{font-size:0.75rem;color:#aaa;margin-top:4px}
+#julia-c{color:#8af;font-weight:bold}
+.back-btn-inline{background:rgba(102,126,234,0.3);color:#8af;border:1px solid rgba(138,170,255,0.4);padding:6px 10px;border-radius:4px;cursor:pointer;font-size:0.85rem;margin-top:8px;width:100%;transition:background 0.2s}
+.back-btn-inline:hover{background:rgba(102,126,234,0.5)}
+.mode-btn{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;padding:6px 12px;font-weight:bold;transition:transform 0.1s,box-shadow 0.2s;box-shadow:0 2px 8px rgba(102,126,234,0.3)}
+.mode-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(102,126,234,0.5)}
+.mode-btn.active{background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%);box-shadow:0 2px 8px rgba(245,87,108,0.3)}
+.hidden{display:none!important}
 #hud{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,0.45);padding:8px 10px;border-radius:6px;font-size:0.85rem}
 footer{padding:8px 14px;background:linear-gradient(90deg,#0f0f12,#0b0b0f);font-size:0.9rem;color:#9aa}
 button{background:#222;border:1px solid #333;color:#ddd;padding:6px 10px;border-radius:4px;cursor:pointer}
 button:hover{background:#2a2a2a}
 .zoom-rect{position:absolute;border:2px dashed #8af;pointer-events:none}
+
+/* Context Menu */
+.context-menu{position:absolute;background:rgba(0,0,0,0.95);border:1px solid rgba(255,255,255,0.3);border-radius:6px;padding:4px 0;min-width:180px;z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,0.5)}
+.context-menu-item{padding:10px 16px;color:#eee;cursor:pointer;transition:background 0.15s;font-size:0.9rem}
+.context-menu-item:hover{background:rgba(102,126,234,0.4);color:#fff}
 @media (max-width: 600px){
   header{padding:8px 10px}
   header h1{font-size:1rem}

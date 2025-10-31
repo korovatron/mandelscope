@@ -68,8 +68,16 @@
   const iterVal = document.getElementById('iterVal');
   const autoIterCheckbox = document.getElementById('auto-iter');
   const resetBtn = document.getElementById('reset');
+  const backToMandelbrotBtn = document.getElementById('back-to-mandelbrot');
   const zoomLevelSpan = document.getElementById('zoom-level');
   const scaleValueSpan = document.getElementById('scale-value');
+  const juliaInfo = document.getElementById('julia-info');
+  const juliaCSpan = document.getElementById('julia-c');
+  const contextMenu = document.getElementById('context-menu');
+  const menuZoomRect = document.getElementById('menu-zoom-rect');
+  const menuShowJulia = document.getElementById('menu-show-julia');
+  const menuToggle = document.getElementById('menu-toggle');
+  const settingsPanel = document.getElementById('settings-panel');
 
   // Detect GPU capabilities
   let hasDiscreteGPU = false;
@@ -109,6 +117,10 @@
   let maxIter = Number(iterSlider.value);
   let isAutoIter = autoIterCheckbox.checked;
   iterVal.textContent = maxIter;
+
+  // Julia set mode
+  let isJuliaMode = false;
+  let juliaC = {x: -0.7, y: 0.27}; // Default interesting Julia set
 
   // Calculate adaptive iteration count based on zoom level
   function calculateAdaptiveIter(){
@@ -166,6 +178,20 @@
     
     // Format scale in scientific notation
     scaleValueSpan.textContent = view.scale.toExponential(2);
+    
+    // Show zoom info and set fade-out timer
+    const zoomInfo = document.getElementById('zoom-info');
+    zoomInfo.classList.remove('fade-out');
+    
+    // Clear existing timer
+    if(updateZoomDisplay.fadeTimer){
+      clearTimeout(updateZoomDisplay.fadeTimer);
+    }
+    
+    // Fade out after 2.5 seconds of inactivity
+    updateZoomDisplay.fadeTimer = setTimeout(function(){
+      zoomInfo.classList.add('fade-out');
+    }, 2500);
   }
 
   let devicePixelRatio = window.devicePixelRatio || 1;
@@ -218,9 +244,17 @@
   }
 
   function resetView(){
-    view.cx = -0.75;
-    view.cy = 0;
-    view.scale = Math.max(3.5 / canvasGL.width, 2.5 / canvasGL.height);
+    if(isJuliaMode){
+      // Julia sets are centered at origin with smaller initial view
+      view.cx = 0;
+      view.cy = 0;
+      view.scale = Math.max(4.0 / canvasGL.width, 4.0 / canvasGL.height);
+    } else {
+      // Mandelbrot set centered at -0.75, 0
+      view.cx = -0.75;
+      view.cy = 0;
+      view.scale = Math.max(3.5 / canvasGL.width, 2.5 / canvasGL.height);
+    }
     maxScale = view.scale; // Update maximum scale to current "fit all" scale
     updateMaxIter();
     updateZoomDisplay();
@@ -384,6 +418,7 @@
   // Helper to split a double into high and low 32-bit floats (Veltkamp-Dekker splitting)
   // Use var here to avoid temporal-dead-zone errors when calling render synchronously during startup/resize
   var glProgram = null;
+  var glProgramJulia = null;
   
   function createGLProgram(){
     if(!gl) return null;
@@ -437,10 +472,16 @@
       float log_zn = log(xx+yy)/2.0;
       float nu = log(log_zn / log(2.0))/log(2.0);
       it = it + 1.0 - nu;
-      float t = it / float(u_iter);
-      float hue = mod(360.0 * (0.95 + 10.0 * t), 360.0);
-      float sat = 1.0;
-      float light = 0.5 + 0.45 * (1.0 - exp(-1.0 * t));
+      
+      // Periodic wave coloring that scales with max iterations
+      float bands = float(u_iter) / 50.0; // number of color bands scales with iterations
+      float wave = mod(it / bands, 2.0);
+      float t = (wave < 1.0) ? wave : (2.0 - wave);
+      t = pow(t, 0.7);
+      
+      float hue = mod(240.0 + it * 3.0, 360.0);
+      float sat = 0.85 + 0.15 * t;
+      float light = 0.3 + 0.5 * t;
       vec3 col = hsv2rgb(hue, sat, light);
       gl_FragColor = vec4(col,1.0);
     }`;
@@ -468,10 +509,107 @@
     return prog;
   }
 
+  function createGLProgramJulia(){
+    if(!gl) return null;
+    const vs = `
+  attribute vec2 a_pos;
+  varying vec2 v_pos;
+  void main(){ v_pos = a_pos; gl_Position = vec4(a_pos,0.0,1.0); }`;
+    const fsJulia = `#ifdef GL_ES
+    precision highp float;
+    #endif
+    varying vec2 v_pos;
+    uniform vec2 u_center;
+    uniform float u_scale;
+    uniform int u_iter;
+    uniform vec2 u_resolution;
+    uniform vec2 u_juliaC;
+
+    // hsv to rgb
+    vec3 hsv2rgb(float h, float s, float v){
+      float c = v * s;
+      float hp = mod(h/60.0,6.0);
+      float x = c * (1.0 - abs(mod(hp,2.0)-1.0));
+      vec3 rgb;
+      if(hp < 1.0) rgb = vec3(c,x,0.0);
+      else if(hp < 2.0) rgb = vec3(x,c,0.0);
+      else if(hp < 3.0) rgb = vec3(0.0,c,x);
+      else if(hp < 4.0) rgb = vec3(0.0,x,c);
+      else if(hp < 5.0) rgb = vec3(x,0.0,c);
+      else rgb = vec3(c,0.0,x);
+      float m = v - c;
+      return rgb + vec3(m);
+    }
+
+    void main(){
+      // map gl coords (-1..1) to pixel coords
+      vec2 uv = (v_pos * 0.5 + 0.5) * u_resolution;
+      // Julia: z starts at pixel, c is constant
+      float x = u_center.x + (uv.x - u_resolution.x * 0.5) * u_scale;
+      float y = u_center.y + (uv.y - u_resolution.y * 0.5) * u_scale;
+      float xx = x*x; float yy = y*y;
+      const int MAX_ITERS = 2000;
+      int iter = u_iter;
+      for(int i = 0; i < MAX_ITERS; i++){
+        if(i >= u_iter) break;
+        y = 2.0*x*y + u_juliaC.y;
+        x = xx - yy + u_juliaC.x;
+        xx = x*x; yy = y*y;
+        if(xx + yy > 4.0){ iter = i; break; }
+      }
+      if(iter == u_iter){ gl_FragColor = vec4(0.0,0.0,0.0,1.0); return; }
+      float it = float(iter);
+      // smooth iteration
+      float log_zn = log(xx+yy)/2.0;
+      float nu = log(log_zn / log(2.0))/log(2.0);
+      it = it + 1.0 - nu;
+      
+      // Periodic wave coloring that scales with max iterations
+      float bands = float(u_iter) / 50.0; // number of color bands scales with iterations
+      float wave = mod(it / bands, 2.0);
+      float t = (wave < 1.0) ? wave : (2.0 - wave);
+      t = pow(t, 0.7);
+      
+      float hue = mod(240.0 + it * 3.0, 360.0);
+      float sat = 0.85 + 0.15 * t;
+      float light = 0.3 + 0.5 * t;
+      vec3 col = hsv2rgb(hue, sat, light);
+      gl_FragColor = vec4(col,1.0);
+    }`;
+
+    function compile(src, type){
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      const ok = gl.getShaderParameter(s, gl.COMPILE_STATUS);
+      if(!ok){
+        const log = gl.getShaderInfoLog(s);
+        console.error('Shader compile error:', log);
+        gl.deleteShader(s);
+        return null;
+      }
+      return s;
+    }
+    const vsS = compile(vs, gl.VERTEX_SHADER);
+    const fsS = compile(fsJulia, gl.FRAGMENT_SHADER);
+    if(!vsS || !fsS) return null;
+    const prog = gl.createProgram(); gl.attachShader(prog, vsS); gl.attachShader(prog, fsS);
+    gl.bindAttribLocation(prog, 0, 'a_pos');
+    gl.linkProgram(prog);
+    if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){ console.error(gl.getProgramInfoLog(prog)); return null; }
+    return prog;
+  }
+
   function glRender(){
     if(!gl) return false;
     
-    const program = glProgram || (glProgram = createGLProgram());
+    // Choose program based on mode
+    let program;
+    if(isJuliaMode){
+      program = glProgramJulia || (glProgramJulia = createGLProgramJulia());
+    } else {
+      program = glProgram || (glProgram = createGLProgram());
+    }
     
     if(!program){
       console.warn('WebGL program not available');
@@ -502,6 +640,12 @@
     gl.uniform1f(u_scale, view.scale);
     gl.uniform1i(u_iter, maxIter);
     gl.uniform2f(u_resolution, canvasGL.width, canvasGL.height);
+
+    // Julia mode needs the c parameter
+    if(isJuliaMode){
+      const u_juliaC = gl.getUniformLocation(program, 'u_juliaC');
+      gl.uniform2f(u_juliaC, juliaC.x, juliaC.y);
+    }
     
     // clear first for a deterministic visual baseline
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -566,35 +710,64 @@
 
   canvasGL.addEventListener('contextmenu', e => e.preventDefault());
 
+  // Helper to start zoom rectangle
+  function startZoomRect(mx_css, my_css){
+    const rect = canvasGL.getBoundingClientRect();
+    isDragging = true;
+    dragStart = {x: mx_css, y: my_css};
+    lastMouse = {x: mx_css, y: my_css};
+    
+    zoomRect = document.createElement('div');
+    zoomRect.className = 'zoom-rect';
+    zoomRect.style.position = 'absolute';
+    zoomRect.style.zIndex = '9999';
+    zoomRect.style.border = '2px dashed #8af';
+    zoomRect.style.background = 'rgba(138,170,255,0.06)';
+    zoomRect.style.pointerEvents = 'none';
+    const cssX = dragStart.x + rect.left;
+    const cssY = dragStart.y + rect.top;
+    zoomRect.style.left = cssX + 'px';
+    zoomRect.style.top = cssY + 'px';
+    zoomRect.style.width = '0px';
+    zoomRect.style.height = '0px';
+    document.body.appendChild(zoomRect);
+  }
+
   canvasGL.addEventListener('mousedown', function(e){
+    // If zoom rect is active, don't interfere - any click will complete it on mouseup
+    if(zoomRect) return;
+    
     if(e.button !== 0 && e.button !== 2) return;
     const rect = canvasGL.getBoundingClientRect();
     const mx_css = (e.clientX - rect.left);
     const my_css = (e.clientY - rect.top);
-    isDragging = true;
-    // store CSS pixel coordinates for dragStart and lastMouse
-    dragStart = {x: mx_css, y: my_css};
-    lastMouse = {x: mx_css, y: my_css};
-
-    if(e.button === 2){
-      // create a visible zoom rectangle with explicit styles so it's always visible
-      zoomRect = document.createElement('div');
-      zoomRect.className = 'zoom-rect';
-      // ensure it's on top and lightly filled for visibility
-      zoomRect.style.position = 'absolute';
-      zoomRect.style.zIndex = '9999';
-      zoomRect.style.border = '2px dashed #8af';
-      zoomRect.style.background = 'rgba(138,170,255,0.06)';
-      zoomRect.style.pointerEvents = 'none';
-      // set initial position so it appears immediately (CSS px)
-      const cssX = dragStart.x + rect.left;
-      const cssY = dragStart.y + rect.top;
-      zoomRect.style.left = cssX + 'px';
-      zoomRect.style.top = cssY + 'px';
-      zoomRect.style.width = '0px';
-      zoomRect.style.height = '0px';
-      document.body.appendChild(zoomRect);
+    
+    if(e.button === 0){
+      // Left click - pan
+      isDragging = true;
+      dragStart = {x: mx_css, y: my_css};
+      lastMouse = {x: mx_css, y: my_css};
     }
+    // Right click handled by contextmenu event
+  });
+
+  // Right-click context menu
+  canvasGL.addEventListener('contextmenu', function(e){
+    e.preventDefault();
+    hideContextMenu();
+    
+    const rect = canvasGL.getBoundingClientRect();
+    const mx_css = (e.clientX - rect.left);
+    const my_css = (e.clientY - rect.top);
+    const mx = mx_css * devicePixelRatio;
+    const my = my_css * devicePixelRatio;
+    const complex = pixelToComplex(mx, my);
+    
+    // Show context menu at click position
+    const menuX = e.clientX;
+    const menuY = e.clientY;
+    
+    showContextMenu(menuX, menuY, complex.x, complex.y, mx_css, my_css);
   });
 
   window.addEventListener('mousemove', function(e){
@@ -697,6 +870,10 @@
   });
 
   // Touch events for mobile
+  // Long press support for touch
+  let longPressTimer = null;
+  let longPressPos = null;
+
   canvasGL.addEventListener('touchstart', function(e){
     e.preventDefault();
     const touches = e.touches;
@@ -706,12 +883,26 @@
       const tx = touches[0].clientX - rect.left;
       const ty = touches[0].clientY - rect.top;
       touchStart = {x: tx, y: ty};
+      
+      // Start long press timer
+      const mx = tx * devicePixelRatio;
+      const my = ty * devicePixelRatio;
+      const complex = pixelToComplex(mx, my);
+      longPressPos = {x: touches[0].clientX, y: touches[0].clientY, cx: complex.x, cy: complex.y, mx_css: tx, my_css: ty};
+      longPressTimer = setTimeout(function(){
+        // Long press detected - show context menu (only in Mandelbrot mode)
+        if(longPressPos && !isJuliaMode){
+          showContextMenu(longPressPos.x, longPressPos.y, longPressPos.cx, longPressPos.cy, longPressPos.mx_css, longPressPos.my_css);
+          touchStart = null; // Cancel pan
+        }
+      }, 500); // 500ms long press
+      
       // Check for double tap
       const now = Date.now();
       if(now - lastTap < 300 && Math.abs(tx - lastTapPos.x) < 30 && Math.abs(ty - lastTapPos.y) < 30){
         // Double tap
-        const mx = tx * devicePixelRatio;
-        const my = ty * devicePixelRatio;
+        clearTimeout(longPressTimer); // Cancel long press
+        longPressTimer = null;
         const complex = pixelToComplex(mx, my);
         let newScale = view.scale * 0.5;
         // Clamp to zoom limits
@@ -727,6 +918,11 @@
         lastTapPos = {x: tx, y: ty};
       }
     } else if(touches.length === 2){
+      // Cancel long press on multi-touch
+      if(longPressTimer){
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
       // Two touches: start pinch
       const rect = canvasGL.getBoundingClientRect();
       const t1 = touches[0], t2 = touches[1];
@@ -743,6 +939,11 @@
 
   canvasGL.addEventListener('touchmove', function(e){
     e.preventDefault();
+    // Cancel long press if finger moves
+    if(longPressTimer){
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
     const touches = e.touches;
     if(touches.length === 1 && touchStart){
       // Pan - but only if we're not right after a pinch gesture
@@ -792,6 +993,11 @@
 
   canvasGL.addEventListener('touchend', function(e){
     e.preventDefault();
+    // Cancel long press timer
+    if(longPressTimer){
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
     // Track when a pinch gesture ends
     if(e.touches.length < 2 && initialDistance !== null){
       lastPinchEnd = Date.now();
@@ -831,6 +1037,106 @@
     resetView();
   });
 
+  // Settings menu toggle
+  menuToggle.addEventListener('click', function(){
+    settingsPanel.classList.toggle('hidden');
+    menuToggle.classList.toggle('active');
+  });
+
+  // Close settings panel when clicking outside
+  document.addEventListener('click', function(e){
+    if(!settingsPanel.contains(e.target) && !menuToggle.contains(e.target)){
+      settingsPanel.classList.add('hidden');
+      menuToggle.classList.remove('active');
+    }
+  });
+
+  // Mode toggle
+  function switchToJulia(cx, cy){
+    juliaC.x = cx;
+    juliaC.y = cy;
+    isJuliaMode = true;
+    juliaInfo.classList.remove('hidden');
+    backToMandelbrotBtn.classList.remove('hidden');
+    updateJuliaDisplay();
+    resetView();
+    requestRender();
+  }
+
+  function switchToMandelbrot(){
+    isJuliaMode = false;
+    juliaInfo.classList.add('hidden');
+    backToMandelbrotBtn.classList.add('hidden');
+    resetView();
+    requestRender();
+  }
+
+  function updateJuliaDisplay(){
+    const real = juliaC.x.toFixed(4);
+    const imag = juliaC.y.toFixed(4);
+    const sign = juliaC.y >= 0 ? '+' : '';
+    juliaCSpan.textContent = `${real} ${sign} ${imag}i`;
+  }
+
+  // Back to Mandelbrot button
+  backToMandelbrotBtn.addEventListener('click', switchToMandelbrot);
+
+  // Context menu state
+  let contextMenuPos = {x: 0, y: 0, cx: 0, cy: 0, mx_css: 0, my_css: 0};
+
+  function showContextMenu(x, y, cx, cy, mx_css, my_css){
+    contextMenuPos = {x, y, cx, cy, mx_css, my_css};
+    
+    // Show/hide menu items based on mode and device
+    const isTouchOnly = isTouchDevice && !window.matchMedia('(pointer: fine)').matches;
+    if(isTouchOnly){
+      // Touch device: only show Julia option, hide zoom rect
+      menuZoomRect.style.display = 'none';
+      menuShowJulia.style.display = 'block';
+    } else if(isJuliaMode){
+      // Julia mode: only show zoom rect, hide Julia option
+      menuShowJulia.style.display = 'none';
+      menuZoomRect.style.display = 'block';
+    } else {
+      // Mandelbrot mode on desktop: show both
+      menuShowJulia.style.display = 'block';
+      menuZoomRect.style.display = 'block';
+    }
+    
+    contextMenu.classList.remove('hidden');
+    
+    // Position menu so cursor is over the center of the first menu item
+    // Menu is ~180px wide, ~40px per item tall
+    // Offset to center: left by ~90px (half width), up by ~20px (half item height + menu padding)
+    contextMenu.style.left = (x - 18) + 'px';
+    contextMenu.style.top = (y - 70) + 'px';
+  }
+
+  function hideContextMenu(){
+    contextMenu.classList.add('hidden');
+  }
+
+  // Hide context menu when clicking elsewhere
+  document.addEventListener('click', function(e){
+    if(!contextMenu.contains(e.target)){
+      hideContextMenu();
+    }
+  });
+
+  // Context menu actions
+  menuZoomRect.addEventListener('click', function(){
+    hideContextMenu();
+    // Start zoom rect at the saved canvas-relative position
+    startZoomRect(contextMenuPos.mx_css, contextMenuPos.my_css);
+  });
+
+  menuShowJulia.addEventListener('click', function(){
+    hideContextMenu();
+    if(!isJuliaMode){
+      switchToJulia(contextMenuPos.cx, contextMenuPos.cy);
+    }
+  });
+
   // Helpers
   function debounce(fn, t){
     let id = null; return (...a)=>{ if(id) clearTimeout(id); id = setTimeout(()=>fn(...a), t); };
@@ -839,6 +1145,7 @@
   // Initialize adaptive iterations and zoom display
   updateMaxIter();
   updateZoomDisplay();
+  updateJuliaDisplay();
 
   // initial render
   requestRender();
