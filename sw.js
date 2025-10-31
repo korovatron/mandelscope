@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mandelscope-v9';
+const CACHE_NAME = 'mandelscope-v10';
 const urlsToCache = [
   './',
   './index.html',
@@ -7,7 +7,8 @@ const urlsToCache = [
   './logo.svg',
   './titleImage.png',
   './iconSolid.png',
-  './iconTrans.png'
+  './iconTrans.png',
+  './screenshot.png'
 ];
 
 // Install event - cache files

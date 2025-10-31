@@ -9,13 +9,13 @@
 
 html,body{height:100%;height:var(--actual-vh, 100vh);overflow:hidden;overscroll-behavior:none}
 #app{display:flex;flex-direction:column;width:100vw;height:var(--actual-vh, 100vh)}
-body{background:#1A2F42;color:#000;overflow:hidden}
+body{background:#100C5C;color:#000;overflow:hidden}
 
 /* Title Screen */
 #title-screen{
   position:fixed;
   top:0;left:0;right:0;bottom:0;
-  background:#1A2F42;
+  background:#100C5C;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -113,22 +113,18 @@ body{background:#1A2F42;color:#000;overflow:hidden}
   color:#8af;
 }
 .start-button,.controls-button{
-  background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
-  color:#fff;
-  border:none;
+  background:rgba(102,126,234,0.2);
+  color:#ddd;
+  border:1px solid rgba(102,126,234,0.4);
   padding:15px 40px;
   font-size:1.2rem;
-  border-radius:8px;
+  border-radius:4px;
   cursor:pointer;
-  transition:transform 0.2s,box-shadow 0.2s;
-  box-shadow:0 4px 15px rgba(102,126,234,0.4);
+  transition:background 0.2s;
 }
 .start-button:hover,.controls-button:hover{
-  transform:translateY(-2px);
-  box-shadow:0 6px 20px rgba(102,126,234,0.6);
-}
-.start-button:active,.controls-button:active{
-  transform:translateY(0);
+  background:rgba(102,126,234,0.35);
+  border-color:rgba(102,126,234,0.6);
 }
 .close-button{
   background:#667eea;
@@ -202,14 +198,33 @@ main{position:relative;flex:1;display:flex}
 .hidden{display:none!important}
 #hud{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,0.45);padding:8px 10px;border-radius:6px;font-size:0.85rem}
 footer{padding:8px 14px;background:linear-gradient(90deg,#0f0f12,#0b0b0f);font-size:0.9rem;color:#9aa}
-button{background:#222;border:1px solid #333;color:#ddd;padding:6px 10px;border-radius:4px;cursor:pointer}
-button:hover{background:#2a2a2a}
+button{background:rgba(102,126,234,0.2);border:1px solid rgba(102,126,234,0.4);color:#ddd;padding:6px 10px;border-radius:4px;cursor:pointer;transition:background 0.2s}
+button:hover{background:rgba(102,126,234,0.35);border-color:rgba(102,126,234,0.6)}
 .zoom-rect{position:absolute;border:2px dashed #8af;pointer-events:none}
 
 /* Context Menu */
 .context-menu{position:absolute;background:rgba(0,0,0,0.95);border:1px solid rgba(255,255,255,0.3);border-radius:6px;padding:4px 0;min-width:180px;z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,0.5)}
 .context-menu-item{padding:10px 16px;color:#eee;cursor:pointer;transition:background 0.15s;font-size:0.9rem}
 .context-menu-item:hover{background:rgba(102,126,234,0.4);color:#fff}
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:2000}
+.modal-content{background:#1a1a2e;border:1px solid var(--border-color);border-radius:8px;padding:24px;min-width:300px;max-width:400px;box-shadow:0 8px 24px rgba(0,0,0,0.8)}
+.modal-content h3{margin:0 0 16px 0;color:#ffffff;font-size:1.2rem}
+.modal-content input[type="text"]{width:100%;padding:10px;background:#2a2a3e;color:#ffffff;border:1px solid var(--border-color);border-radius:4px;font-size:1rem;margin-bottom:16px;box-sizing:border-box}
+.modal-content input[type="text"]:focus{outline:none;border-color:var(--accent-color)}
+.modal-buttons{display:flex;gap:10px;justify-content:flex-end}
+.modal-btn{padding:8px 16px;background:var(--accent-color);color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.95rem;transition:background 0.2s}
+.modal-btn:hover{background:#7a93ee}
+.modal-btn.cancel{background:rgba(255,255,255,0.1)}
+.modal-btn.cancel:hover{background:rgba(255,255,255,0.2)}
+.manage-modal{max-width:500px}
+.location-item{display:flex;align-items:center;justify-content:space-between;padding:10px;background:rgba(255,255,255,0.05);border-radius:4px;margin-bottom:8px}
+.location-item:hover{background:rgba(255,255,255,0.08)}
+.location-name{color:#ffffff;font-size:0.95rem;flex:1}
+.location-coords{color:rgba(255,255,255,0.5);font-size:0.8rem;margin-left:10px}
+.delete-location-btn{padding:6px 12px;background:#d94545;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.85rem;transition:background 0.2s}
+.delete-location-btn:hover{background:#c03030}
+#manage-locations-list{max-height:400px;overflow-y:auto;margin-bottom:16px}
+#manage-locations-list:empty::after{content:"No saved locations yet";color:rgba(255,255,255,0.5);display:block;text-align:center;padding:20px}
 @media (max-width: 600px){
   header{padding:8px 10px}
   header h1{font-size:1rem}

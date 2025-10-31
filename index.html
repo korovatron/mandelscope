@@ -3,15 +3,70 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  
+  <!-- SEO Meta Tags -->
+  <title>Mandelscope - Interactive Mandelbrot & Julia Set Explorer | Fractal Visualisation</title>
+  <meta name="description" content="Explore the infinite beauty of the Mandelbrot set and Julia sets with Mandelscope. Interactive fractal visualisation with smooth zooming, preset locations, and real-time GPU rendering. Perfect for mathematics students and fractal enthusiasts." />
+  <meta name="keywords" content="Mandelbrot set, Julia set, fractal explorer, complex numbers, mathematics visualisation, interactive fractals, WebGL fractals, chaos theory, fractal geometry, mathematical visualisation" />
+  <meta name="author" content="Neil Kendall" />
+  <meta name="robots" content="index, follow" />
+  <meta name="language" content="English" />
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.korovatron.co.uk/mandelscope/" />
+  <meta property="og:title" content="Mandelscope - Interactive Mandelbrot & Julia Set Explorer" />
+  <meta property="og:description" content="Explore the infinite beauty of the Mandelbrot set and Julia sets with smooth zooming, preset famous locations, and real-time GPU rendering." />
+  <meta property="og:image" content="https://www.korovatron.co.uk/mandelscope/screenshot.png" />
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://www.korovatron.co.uk/mandelscope/" />
+  <meta property="twitter:title" content="Mandelscope - Interactive Mandelbrot & Julia Set Explorer" />
+  <meta property="twitter:description" content="Explore the infinite beauty of the Mandelbrot set and Julia sets with smooth zooming, preset famous locations, and real-time GPU rendering." />
+  <meta property="twitter:image" content="https://www.korovatron.co.uk/mandelscope/screenshot.png" />
+  
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://www.korovatron.co.uk/mandelscope/" />
+  
+  <!-- PWA Meta Tags -->
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Mandelscope" />
-  <meta name="theme-color" content="#151526" />
-  <title>Mandelscope — Mandelbrot Explorer</title>
+  <meta name="theme-color" content="#100C5C" />
+  
+  <!-- Icons and Manifest -->
   <link rel="icon" type="image/png" href="iconTrans.png">
   <link rel="apple-touch-icon" href="iconSolid.png">
   <link rel="manifest" href="manifest.json">
+  
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Mandelscope",
+    "description": "Interactive Mandelbrot and Julia set explorer with real-time GPU rendering, smooth zooming, and preset famous fractal locations",
+    "url": "https://www.korovatron.co.uk/mandelscope/",
+    "applicationCategory": "EducationalApplication",
+    "operatingSystem": "Any",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "GBP"
+    },
+    "author": {
+      "@type": "Person",
+      "name": "Neil Kendall"
+    },
+    "keywords": "Mandelbrot set, Julia set, fractals, mathematics, complex numbers, visualisation",
+    "screenshot": "https://www.korovatron.co.uk/mandelscope/screenshot.png",
+    "softwareVersion": "1.0",
+    "datePublished": "2025-10-31"
+  }
+  </script>
+  
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -20,39 +75,12 @@
     <div class="title-content">
       <canvas id="title-logo-canvas" class="title-logo"></canvas>
       <h1>Mandelscope</h1>
-      <p class="subtitle">Explore the Mandelbrot Set</p>
+      <p class="subtitle">Explore the Mandelbrot & Julia Sets</p>
       
       <div class="title-buttons">
         <button id="start-btn" class="start-button">Start Exploring</button>
-        <button id="controls-btn" class="controls-button">Controls</button>
       </div>
       <p class="hint">Written by Neil Kendall 2025</p>
-    </div>
-    
-    <!-- Controls Overlay (hidden by default) -->
-    <div id="controls-overlay" class="controls-overlay hidden">
-      <div class="controls-content">
-        <h2>Controls</h2>
-        <div class="control-group">
-          <strong>Mouse:</strong>
-          <ul>
-            <li>Left-click and drag to pan</li>
-            <li>Right-click and drag to select zoom area</li>
-            <li>Double-click to zoom in</li>
-            <li>Mouse wheel to zoom in/out</li>
-          </ul>
-        </div>
-        <div class="control-group">
-          <strong>Touch:</strong>
-          <ul>
-            <li>Pinch to zoom</li>
-            <li>Double-tap to zoom in</li>
-            <li>Drag to pan</li>
-          </ul>
-        </div>
-        <button id="close-controls-btn" class="close-button">Close</button>
-      </div>
-    </div>
     </div>
   </div>
 
@@ -85,17 +113,123 @@
         <div class="setting-group">
           <button id="reset" class="reset-btn">Reset View</button>
         </div>
-        <div class="setting-group" style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px; margin-top: 10px;">
-          <div style="font-size: 11px; color: #888; line-height: 1.4;">
-            <div><strong>Debug Info:</strong></div>
-            <div>Screen: <span id="debug-screen">-</span></div>
-            <div>DPR: <span id="debug-dpr">-</span></div>
-            <div>Calc Size: <span id="debug-calc">-</span></div>
-            <div>Canvas: <span id="debug-canvas">-</span></div>
-            <div>Device: <span id="debug-device">-</span></div>
-            <div>Total Pixels: <span id="debug-pixels">-</span></div>
-          </div>
+        <div class="setting-group">
+          <button id="return-to-title" class="reset-btn">Return to Title Screen</button>
         </div>
+        <div class="setting-group" style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px; margin-top: 10px;">
+          <label style="display: block; margin-bottom: 8px; font-weight: bold;">Mandelbrot Locations:</label>
+          <select id="preset-locations" style="width: 100%; padding: 8px; background: #100C5C; color: var(--text-primary, #E8F4FD); border: 1px solid var(--border-color, #555); border-radius: 4px; font-size: 14px; margin-bottom: 8px;">
+            <option value="">Select a location...</option>
+            <option value="seahorse">Seahorse Valley</option>
+            <option value="elephant">Elephant Valley</option>
+            <option value="triple-spiral">Triple Spiral Valley</option>
+            <option value="dendrite">Dendrite</option>
+            <option value="mini-mandelbrot">Mini Mandelbrot</option>
+            <option value="misiurewicz">Misiurewicz Point</option>
+            <option value="scepter">Scepter Valley</option>
+            <option value="satellite">Satellite</option>
+          </select>
+          <button id="manage-locations-btn" style="width: 100%; padding: 8px; background: rgba(255,255,255,0.1); color: var(--text-primary, #E8F4FD); border: 1px solid var(--border-color, #555); border-radius: 4px; font-size: 14px; cursor: pointer;">Manage Locations...</button>
+        </div>
+        <div class="setting-group" style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px; margin-top: 10px;">
+          <label style="display: block; margin-bottom: 8px; font-weight: bold;">Julia Set Collections:</label>
+          <select id="julia-locations" style="width: 100%; padding: 8px; background: #100C5C; color: var(--text-primary, #E8F4FD); border: 1px solid var(--border-color, #555); border-radius: 4px; font-size: 14px; margin-bottom: 8px;">
+            <option value="">Select a Julia set...</option>
+          </select>
+          <button id="manage-julia-btn" style="width: 100%; padding: 8px; background: rgba(255,255,255,0.1); color: var(--text-primary, #E8F4FD); border: 1px solid var(--border-color, #555); border-radius: 4px; font-size: 14px; cursor: pointer;">Manage Julia Sets...</button>
+        </div>
+        <div class="setting-group" style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px; margin-top: 10px;">
+          <button id="show-math-btn" class="reset-btn">About the Maths</button>
+        </div>
+        <div class="setting-group">
+          <button id="show-controls-btn" class="reset-btn">Show Controls</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls Overlay (hidden by default) -->
+    <div id="controls-overlay" class="controls-overlay hidden">
+      <div class="controls-content">
+        <h2>Controls</h2>
+        <div class="control-group">
+          <strong>Mouse:</strong>
+          <ul>
+            <li>Left-click and drag to pan</li>
+            <li>Double-click to zoom in</li>
+            <li>Mouse wheel to zoom in/out</li>
+            <li>Right-click for context menu (save location, view Julia set)</li>
+          </ul>
+        </div>
+        <div class="control-group">
+          <strong>Touch:</strong>
+          <ul>
+            <li>Pinch to zoom</li>
+            <li>Double-tap to zoom in</li>
+            <li>Drag to pan</li>
+            <li>Long tap for context menu</li>
+          </ul>
+        </div>
+        <div class="control-group">
+          <strong>Keyboard:</strong>
+          <ul>
+            <li>Arrow keys or WASD to pan</li>
+            <li>+ / - to zoom in/out</li>
+            <li>R to reset view</li>
+            <li>Escape to return to title screen</li>
+          </ul>
+        </div>
+        <button id="close-controls-btn" class="close-button">Close</button>
+      </div>
+    </div>
+
+    <!-- Maths Explanation Overlay (hidden by default) -->
+    <div id="math-overlay" class="controls-overlay hidden">
+      <div class="controls-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto; padding: 30px;">
+        <h2 style="margin-top: 0; margin-bottom: 25px;">The Mathematics of the Mandelbrot Set</h2>
+        
+        <h3 style="margin-top: 30px; margin-bottom: 15px;">The Iteration Formula</h3>
+        <p style="margin-bottom: 15px;">The Mandelbrot set is defined by a simple iterative formula applied to complex numbers:</p>
+        <p style="text-align: center; font-size: 1.3em; margin: 20px 0; font-family: 'Times New Roman', serif;">
+          z<sub>n+1</sub> = z<sub>n</sub><sup>2</sup> + c
+        </p>
+        <p style="margin-bottom: 10px;">where:</p>
+        <ul style="line-height: 2.2; margin-bottom: 20px;">
+          <li><em>c</em> is a complex number representing a point on the complex plane</li>
+          <li><em>z</em><sub>0</sub> = 0 (we always start with zero)</li>
+          <li><em>z</em><sub>n</sub> is the value after <em>n</em> iterations</li>
+        </ul>
+
+        <h3 style="margin-top: 30px; margin-bottom: 15px;">Membership Test</h3>
+        <p style="margin-bottom: 15px;">A complex number <em>c</em> belongs to the Mandelbrot set if the sequence <em>z</em><sub>0</sub>, <em>z</em><sub>1</sub>, <em>z</em><sub>2</sub>, <em>z</em><sub>3</sub>, ... remains bounded (doesn't escape to infinity) as <em>n</em> → ∞.</p>
+        <p style="margin-bottom: 20px;">In practice, we test whether |<em>z</em><sub>n</sub>| &gt; 2 (the modulus exceeds 2). If this happens, we know the sequence will escape to infinity. If after many iterations (typically 500–10,000) the value hasn't escaped, we assume <em>c</em> is in the set.</p>
+
+        <h3 style="margin-top: 30px; margin-bottom: 15px;">Example Calculation</h3>
+        <p style="margin-bottom: 10px;">Let's test whether <em>c</em> = 0.3 + 0.5<em>i</em> is in the Mandelbrot set:</p>
+        <ul style="line-height: 2.2; margin-bottom: 15px;">
+          <li><em>z</em><sub>0</sub> = 0</li>
+          <li><em>z</em><sub>1</sub> = 0<sup>2</sup> + (0.3 + 0.5<em>i</em>) = 0.3 + 0.5<em>i</em></li>
+          <li><em>z</em><sub>2</sub> = (0.3 + 0.5<em>i</em>)<sup>2</sup> + (0.3 + 0.5<em>i</em>) = −0.16 + 0.3<em>i</em> + 0.3 + 0.5<em>i</em> = 0.14 + 0.8<em>i</em></li>
+          <li><em>z</em><sub>3</sub> = (0.14 + 0.8<em>i</em>)<sup>2</sup> + (0.3 + 0.5<em>i</em>) = −0.6196 + 0.224<em>i</em> + 0.3 + 0.5<em>i</em> = −0.3196 + 0.724<em>i</em></li>
+          <li>Continue iterating...</li>
+        </ul>
+        <p style="margin-bottom: 20px;">For this value, |<em>z</em><sub>n</sub>| remains less than 2, so <em>c</em> = 0.3 + 0.5<em>i</em> is in the Mandelbrot set.</p>
+
+        <h3 style="margin-top: 30px; margin-bottom: 15px;">Colouring</h3>
+        <p style="margin-bottom: 15px;">The beautiful colours you see aren't part of the set itself — the Mandelbrot set is actually just black! The colours represent <em>how quickly</em> points outside the set escape to infinity:</p>
+        <ul style="line-height: 2.2; margin-bottom: 15px;">
+          <li>Points that escape after few iterations are coloured one way (typically lighter)</li>
+          <li>Points that take many iterations to escape are coloured differently (typically darker)</li>
+          <li>Points in the set (never escape) are coloured black</li>
+        </ul>
+        <p style="margin-bottom: 20px;">This application uses "Smooth Periodic Wave Colouring" which creates the fluid rainbow patterns by using the final iteration count and the magnitude of <em>z</em><sub>n</sub> to generate smooth, continuous colour transitions.</p>
+
+        <h3 style="margin-top: 30px; margin-bottom: 15px;">Why Complex Numbers?</h3>
+        <p style="margin-bottom: 20px;">Complex numbers are essential because they give us a 2D space to explore. The real part of <em>c</em> corresponds to the x-axis, and the imaginary part corresponds to the y-axis. This allows us to visualise the set as an image where each pixel represents testing a different complex number.</p>
+
+        <h3 style="margin-top: 30px; margin-bottom: 15px;">Connection to Julia Sets</h3>
+        <p style="margin-bottom: 20px;">Julia sets are closely related: instead of fixing <em>z</em><sub>0</sub> = 0 and varying <em>c</em>, we fix <em>c</em> to a specific value and vary <em>z</em><sub>0</sub>. Each point in the Mandelbrot set corresponds to a different Julia set. Points inside the Mandelbrot set produce connected Julia sets, while points outside produce disconnected "dust" Julia sets.</p>
+
+        <button id="close-math-btn" class="close-button" style="margin-top: 25px;">Close</button>
       </div>
     </div>
 
@@ -115,8 +249,55 @@
         
         <!-- Context Menu -->
         <div id="context-menu" class="context-menu hidden">
-          <div class="context-menu-item" id="menu-zoom-rect">Zoom to Rectangle</div>
           <div class="context-menu-item" id="menu-show-julia">Show Julia Set</div>
+          <div class="context-menu-item" id="menu-save-location">Save Location...</div>
+          <div class="context-menu-item" id="menu-save-julia">Save Julia Set...</div>
+        </div>
+
+        <!-- Save Location Modal -->
+        <div id="save-location-modal" class="modal hidden">
+          <div class="modal-content">
+            <h3>Save Location</h3>
+            <input type="text" id="location-name-input" placeholder="Enter location name..." maxlength="30">
+            <div class="modal-buttons">
+              <button id="save-location-btn" class="modal-btn">Save</button>
+              <button id="cancel-location-btn" class="modal-btn cancel">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Manage Locations Modal -->
+        <div id="manage-locations-modal" class="modal hidden">
+          <div class="modal-content manage-modal">
+            <h3>Manage My Locations</h3>
+            <div id="manage-locations-list"></div>
+            <div class="modal-buttons">
+              <button id="close-manage-btn" class="modal-btn">Close</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Save Julia Set Modal -->
+        <div id="save-julia-modal" class="modal hidden">
+          <div class="modal-content">
+            <h3>Save Julia Set</h3>
+            <input type="text" id="julia-name-input" placeholder="Enter Julia set name..." maxlength="30">
+            <div class="modal-buttons">
+              <button id="save-julia-btn" class="modal-btn">Save</button>
+              <button id="cancel-julia-btn" class="modal-btn cancel">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Manage Julia Sets Modal -->
+        <div id="manage-julia-modal" class="modal hidden">
+          <div class="modal-content manage-modal">
+            <h3>Manage My Julia Sets</h3>
+            <div id="manage-julia-list"></div>
+            <div class="modal-buttons">
+              <button id="close-manage-julia-btn" class="modal-btn">Close</button>
+            </div>
+          </div>
         </div>
       </div>
     </main>

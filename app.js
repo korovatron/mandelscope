@@ -20,10 +20,13 @@
   // Title screen handling
   const titleScreen = document.getElementById('title-screen');
   const startBtn = document.getElementById('start-btn');
-  const controlsBtn = document.getElementById('controls-btn');
+  const titleLogoCanvas = document.getElementById('title-logo-canvas');
   const controlsOverlay = document.getElementById('controls-overlay');
   const closeControlsBtn = document.getElementById('close-controls-btn');
-  const titleLogoCanvas = document.getElementById('title-logo-canvas');
+  const showControlsBtn = document.getElementById('show-controls-btn');
+  const mathOverlay = document.getElementById('math-overlay');
+  const closeMathBtn = document.getElementById('close-math-btn');
+  const showMathBtn = document.getElementById('show-math-btn');
   
   // Load and draw title image with high-quality smoothing
   const titleImage = new Image();
@@ -44,6 +47,14 @@
   };
   
   function dismissTitleScreen(){
+    // Always start in Mandelbrot mode with reset view
+    if(isJuliaMode){
+      isJuliaMode = false;
+      juliaInfo.classList.add('hidden');
+      backToMandelbrotBtn.classList.add('hidden');
+    }
+    resetView();
+    
     titleScreen.classList.add('hidden');
     setTimeout(() => {
       titleScreen.style.display = 'none';
@@ -51,8 +62,11 @@
   }
   
   // Controls overlay handlers
-  controlsBtn.addEventListener('click', function(){
+  showControlsBtn.addEventListener('click', function(){
     controlsOverlay.classList.remove('hidden');
+    // Close settings panel
+    settingsPanel.classList.add('hidden');
+    menuToggle.classList.remove('active');
   });
   
   closeControlsBtn.addEventListener('click', function(){
@@ -63,6 +77,25 @@
   controlsOverlay.addEventListener('click', function(e){
     if(e.target === controlsOverlay){
       controlsOverlay.classList.add('hidden');
+    }
+  });
+
+  // Math overlay handlers
+  showMathBtn.addEventListener('click', function(){
+    mathOverlay.classList.remove('hidden');
+    // Close settings panel
+    settingsPanel.classList.add('hidden');
+    menuToggle.classList.remove('active');
+  });
+  
+  closeMathBtn.addEventListener('click', function(){
+    mathOverlay.classList.add('hidden');
+  });
+  
+  // Click overlay background to close
+  mathOverlay.addEventListener('click', function(e){
+    if(e.target === mathOverlay){
+      mathOverlay.classList.add('hidden');
     }
   });
   
@@ -86,13 +119,13 @@
   const iterVal = document.getElementById('iterVal');
   const autoIterCheckbox = document.getElementById('auto-iter');
   const resetBtn = document.getElementById('reset');
+  const returnToTitleBtn = document.getElementById('return-to-title');
   const backToMandelbrotBtn = document.getElementById('back-to-mandelbrot');
   const zoomLevelSpan = document.getElementById('zoom-level');
   const scaleValueSpan = document.getElementById('scale-value');
   const juliaInfo = document.getElementById('julia-info');
   const juliaCSpan = document.getElementById('julia-c');
   const contextMenu = document.getElementById('context-menu');
-  const menuZoomRect = document.getElementById('menu-zoom-rect');
   const menuShowJulia = document.getElementById('menu-show-julia');
   const menuToggle = document.getElementById('menu-toggle');
   const settingsPanel = document.getElementById('settings-panel');
@@ -139,6 +172,7 @@
   // Julia set mode
   let isJuliaMode = false;
   let juliaC = {x: -0.7, y: 0.27}; // Default interesting Julia set
+  let savedMandelbrotView = null; // Save Mandelbrot view when switching to Julia
 
   // Calculate adaptive iteration count based on zoom level
   function calculateAdaptiveIter(){
@@ -1109,6 +1143,104 @@
     resetView();
   });
 
+  // Return to Title Screen button
+  returnToTitleBtn.addEventListener('click', function(){
+    // Show title screen (reverse the dismissTitleScreen logic)
+    titleScreen.style.display = 'flex';
+    setTimeout(() => {
+      titleScreen.classList.remove('hidden');
+    }, 10);
+    // Close settings panel
+    settingsPanel.classList.add('hidden');
+    menuToggle.classList.remove('active');
+  });
+
+  // Preset locations
+  const presetLocations = {
+    'seahorse': { cx: -0.7435669, cy: 0.1314023, scale: 0.00005, name: 'Seahorse Valley' },
+    'elephant': { cx: 0.28692999, cy: 0.0148590, scale: 0.00004, name: 'Elephant Valley' },
+    'triple-spiral': { cx: -0.7710, cy: 0.1060, scale: 0.00008, name: 'Triple Spiral Valley' },
+    'dendrite': { cx: -0.1592, cy: 1.0317, scale: 0.0015, name: 'Dendrite' },
+    'mini-mandelbrot': { cx: -0.7453, cy: 0.1127, scale: 0.000008, name: 'Mini Mandelbrot' },
+    'misiurewicz': { cx: -0.1011, cy: 0.9563, scale: 0.0003, name: 'Misiurewicz Point' },
+    'scepter': { cx: -1.2569, cy: 0.3803, scale: 0.0003, name: 'Scepter Valley' },
+    'satellite': { cx: -0.1565, cy: 1.0325, scale: 0.0001, name: 'Satellite' }
+  };
+
+  // Load custom locations from localStorage
+  function loadCustomLocations(){
+    const stored = localStorage.getItem('mandelscope-custom-locations');
+    return stored ? JSON.parse(stored) : {};
+  }
+
+  function saveCustomLocations(customLocs){
+    localStorage.setItem('mandelscope-custom-locations', JSON.stringify(customLocs));
+  }
+
+  let customLocations = loadCustomLocations();
+
+  // Populate dropdown with preset and custom locations
+  function populateLocationDropdown(){
+    const presetSelect = document.getElementById('preset-locations');
+    // Clear all children except the first option (default)
+    const firstOption = presetSelect.firstElementChild;
+    presetSelect.innerHTML = '';
+    presetSelect.appendChild(firstOption);
+
+    // Add preset locations
+    const presetGroup = document.createElement('optgroup');
+    presetGroup.label = 'Famous Places';
+    for(const [key, loc] of Object.entries(presetLocations)){
+      const option = document.createElement('option');
+      option.value = 'preset:' + key;
+      option.textContent = loc.name;
+      presetGroup.appendChild(option);
+    }
+    presetSelect.appendChild(presetGroup);
+
+    // Add custom locations if any exist
+    if(Object.keys(customLocations).length > 0){
+      const customGroup = document.createElement('optgroup');
+      customGroup.label = 'My Locations';
+      for(const [key, loc] of Object.entries(customLocations)){
+        const option = document.createElement('option');
+        option.value = 'custom:' + key;
+        option.textContent = loc.name;
+        customGroup.appendChild(option);
+      }
+      presetSelect.appendChild(customGroup);
+    }
+  }
+
+  populateLocationDropdown();
+
+  const presetSelect = document.getElementById('preset-locations');
+  presetSelect.addEventListener('change', function(){
+    const selected = this.value;
+    if(selected){
+      let loc = null;
+      if(selected.startsWith('preset:')){
+        const key = selected.substring(7);
+        loc = presetLocations[key];
+      } else if(selected.startsWith('custom:')){
+        const key = selected.substring(7);
+        loc = customLocations[key];
+      }
+      
+      if(loc){
+        // Switch to Mandelbrot mode if in Julia mode
+        if(isJuliaMode){
+          switchToMandelbrot();
+        }
+        animateView(loc.cx, loc.cy, loc.scale);
+        // Reset dropdown after a short delay
+        setTimeout(() => {
+          this.value = '';
+        }, 300);
+      }
+    }
+  });
+
   // Settings menu toggle
   menuToggle.addEventListener('click', function(){
     settingsPanel.classList.toggle('hidden');
@@ -1125,8 +1257,119 @@
   document.addEventListener('click', closeSettingsIfOutside);
   document.addEventListener('touchstart', closeSettingsIfOutside);
 
+  // Keyboard controls - continuous movement
+  const keysPressed = new Set();
+  let keyboardAnimFrame = null;
+
+  function updateKeyboardMovement(){
+    if(keysPressed.size === 0){
+      keyboardAnimFrame = null;
+      return;
+    }
+
+    const panSpeed = view.scale * 2; // Pan speed relative to current zoom
+    const zoomSpeed = 0.98; // Zoom multiplier per frame (slower than discrete)
+    let changed = false;
+
+    // Pan with arrow keys or WASD
+    if(keysPressed.has('arrowup') || keysPressed.has('w')){
+      view.cy -= panSpeed;
+      changed = true;
+    }
+    if(keysPressed.has('arrowdown') || keysPressed.has('s')){
+      view.cy += panSpeed;
+      changed = true;
+    }
+    if(keysPressed.has('arrowleft') || keysPressed.has('a')){
+      view.cx += panSpeed;
+      changed = true;
+    }
+    if(keysPressed.has('arrowright') || keysPressed.has('d')){
+      view.cx -= panSpeed;
+      changed = true;
+    }
+
+    // Zoom with +/-
+    if(keysPressed.has('+') || keysPressed.has('=')){
+      view.scale *= zoomSpeed;
+      changed = true;
+    }
+    if(keysPressed.has('-') || keysPressed.has('_')){
+      view.scale /= zoomSpeed;
+      changed = true;
+    }
+
+    if(changed){
+      updateMaxIter();
+      updateZoomDisplay();
+      requestRender();
+    }
+
+    keyboardAnimFrame = requestAnimationFrame(updateKeyboardMovement);
+  }
+
+  document.addEventListener('keydown', function(e){
+    // Don't intercept keys when typing in input fields
+    if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA'){
+      return;
+    }
+
+    // Don't handle keys if title screen is visible
+    if(!titleScreen.classList.contains('hidden')){
+      return;
+    }
+
+    const key = e.key.toLowerCase();
+    let handled = false;
+
+    // Handle movement keys
+    if(['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', '+', '=', '-', '_'].includes(key)){
+      if(!keysPressed.has(key)){
+        keysPressed.add(key);
+        if(!keyboardAnimFrame){
+          updateKeyboardMovement();
+        }
+      }
+      handled = true;
+    }
+
+    // Handle 'R' key - Reset view
+    if(key === 'r'){
+      resetView();
+      handled = true;
+    }
+
+    // Handle Escape
+    if(key === 'escape'){
+      titleScreen.style.display = 'flex';
+      setTimeout(() => {
+        titleScreen.classList.remove('hidden');
+      }, 10);
+      // Close any open panels
+      settingsPanel.classList.add('hidden');
+      menuToggle.classList.remove('active');
+      handled = true;
+    }
+
+    if(handled){
+      e.preventDefault();
+    }
+  });
+
+  document.addEventListener('keyup', function(e){
+    const key = e.key.toLowerCase();
+    keysPressed.delete(key);
+  });
+
   // Mode toggle
   function switchToJulia(cx, cy){
+    // Save current Mandelbrot view before switching
+    savedMandelbrotView = {
+      cx: view.cx,
+      cy: view.cy,
+      scale: view.scale
+    };
+    
     juliaC.x = cx;
     juliaC.y = cy;
     isJuliaMode = true;
@@ -1141,7 +1384,17 @@
     isJuliaMode = false;
     juliaInfo.classList.add('hidden');
     backToMandelbrotBtn.classList.add('hidden');
-    resetView();
+    
+    // Restore saved Mandelbrot view if available
+    if(savedMandelbrotView){
+      view.cx = savedMandelbrotView.cx;
+      view.cy = savedMandelbrotView.cy;
+      view.scale = savedMandelbrotView.scale;
+      updateZoomDisplay();
+    } else {
+      resetView();
+    }
+    
     requestRender();
   }
 
@@ -1161,29 +1414,30 @@
   function showContextMenu(x, y, cx, cy, mx_css, my_css){
     contextMenuPos = {x, y, cx, cy, mx_css, my_css};
     
-    // Show/hide menu items based on mode and device
-    const isTouchOnly = isTouchDevice && !window.matchMedia('(pointer: fine)').matches;
-    if(isTouchOnly){
-      // Touch device: only show Julia option, hide zoom rect
-      menuZoomRect.style.display = 'none';
-      menuShowJulia.style.display = 'block';
-    } else if(isJuliaMode){
-      // Julia mode: only show zoom rect, hide Julia option
+    // Show/hide menu items based on mode
+    if(isJuliaMode){
+      // Julia mode: hide Show Julia option
       menuShowJulia.style.display = 'none';
-      menuZoomRect.style.display = 'block';
     } else {
-      // Mandelbrot mode on desktop: show both
+      // Mandelbrot mode: show Julia option
       menuShowJulia.style.display = 'block';
-      menuZoomRect.style.display = 'block';
+    }
+    
+    // Show/hide save options based on mode
+    if(isJuliaMode){
+      menuSaveLocation.style.display = 'none';
+      menuSaveJulia.style.display = 'block';
+    } else {
+      menuSaveLocation.style.display = 'block';
+      menuSaveJulia.style.display = 'none';
     }
     
     contextMenu.classList.remove('hidden');
     
-    // Position menu so cursor is over the center of the first menu item
-    // Menu is ~180px wide, ~40px per item tall
-    // Offset to center: left by ~90px (half width), up by ~20px (half item height + menu padding)
-    contextMenu.style.left = (x - 18) + 'px';
-    contextMenu.style.top = (y - 70) + 'px';
+    // Position menu below and to the right of cursor
+    // Small offset so cursor doesn't immediately hover over first item
+    contextMenu.style.left = (x + 5) + 'px';
+    contextMenu.style.top = (y + 5) + 'px';
   }
 
   function hideContextMenu(){
@@ -1200,16 +1454,355 @@
   document.addEventListener('touchstart', hideContextMenuIfOutside);
 
   // Context menu actions
-  menuZoomRect.addEventListener('click', function(){
-    hideContextMenu();
-    // Start zoom rect at the saved canvas-relative position
-    startZoomRect(contextMenuPos.mx_css, contextMenuPos.my_css);
-  });
-
   menuShowJulia.addEventListener('click', function(){
     hideContextMenu();
     if(!isJuliaMode){
       switchToJulia(contextMenuPos.cx, contextMenuPos.cy);
+    }
+  });
+
+  // Save Location functionality
+  const menuSaveLocation = document.getElementById('menu-save-location');
+  const saveLocationModal = document.getElementById('save-location-modal');
+  const locationNameInput = document.getElementById('location-name-input');
+  const saveLocationBtn = document.getElementById('save-location-btn');
+  const cancelLocationBtn = document.getElementById('cancel-location-btn');
+
+  menuSaveLocation.addEventListener('click', function(){
+    hideContextMenu();
+    // Only allow saving in Mandelbrot mode
+    if(isJuliaMode){
+      alert('Location saving is only available in Mandelbrot mode');
+      return;
+    }
+    // Show modal and focus input
+    saveLocationModal.classList.remove('hidden');
+    locationNameInput.value = '';
+    locationNameInput.focus();
+  });
+
+  function saveCurrentLocation(){
+    const name = locationNameInput.value.trim();
+    if(!name){
+      alert('Please enter a name for this location');
+      return;
+    }
+
+    // Generate a unique key
+    const key = 'loc_' + Date.now();
+    
+    // Save location
+    customLocations[key] = {
+      name: name,
+      cx: view.cx,
+      cy: view.cy,
+      scale: view.scale
+    };
+
+    saveCustomLocations(customLocations);
+    populateLocationDropdown();
+
+    // Close modal
+    saveLocationModal.classList.add('hidden');
+  }
+
+  saveLocationBtn.addEventListener('click', saveCurrentLocation);
+  
+  cancelLocationBtn.addEventListener('click', function(){
+    saveLocationModal.classList.add('hidden');
+  });
+
+  // Allow Enter key to save
+  locationNameInput.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){
+      saveCurrentLocation();
+    } else if(e.key === 'Escape'){
+      saveLocationModal.classList.add('hidden');
+    }
+  });
+
+  // Close modal when clicking outside
+  saveLocationModal.addEventListener('click', function(e){
+    if(e.target === saveLocationModal){
+      saveLocationModal.classList.add('hidden');
+    }
+  });
+
+  // Manage Locations functionality
+  const manageLocationsBtn = document.getElementById('manage-locations-btn');
+  const manageLocationsModal = document.getElementById('manage-locations-modal');
+  const manageLocationsList = document.getElementById('manage-locations-list');
+  const closeManageBtn = document.getElementById('close-manage-btn');
+
+  function populateManageList(){
+    manageLocationsList.innerHTML = '';
+    
+    if(Object.keys(customLocations).length === 0){
+      return; // Empty state handled by CSS
+    }
+
+    for(const [key, loc] of Object.entries(customLocations)){
+      const item = document.createElement('div');
+      item.className = 'location-item';
+      
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'location-name';
+      nameSpan.textContent = loc.name;
+      
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'delete-location-btn';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.addEventListener('click', function(){
+        if(confirm(`Delete "${loc.name}"?`)){
+          delete customLocations[key];
+          saveCustomLocations(customLocations);
+          populateLocationDropdown();
+          populateManageList();
+        }
+      });
+      
+      item.appendChild(nameSpan);
+      item.appendChild(deleteBtn);
+      manageLocationsList.appendChild(item);
+    }
+  }
+
+  manageLocationsBtn.addEventListener('click', function(){
+    populateManageList();
+    manageLocationsModal.classList.remove('hidden');
+  });
+
+  closeManageBtn.addEventListener('click', function(){
+    manageLocationsModal.classList.add('hidden');
+  });
+
+  manageLocationsModal.addEventListener('click', function(e){
+    if(e.target === manageLocationsModal){
+      manageLocationsModal.classList.add('hidden');
+    }
+  });
+
+  // ============ JULIA SET LOCATIONS ============
+
+  // Preset Julia sets (famous ones)
+  const presetJuliaSets = {
+    'dendrite': { cx: 0, cy: 0, c_real: -0.4, c_imag: 0.6, scale: 0.003, name: 'Dendrite Julia' },
+    'douady-rabbit': { cx: 0, cy: 0, c_real: -0.123, c_imag: 0.745, scale: 0.003, name: 'Douady Rabbit' },
+    'siegel-disk': { cx: 0, cy: 0, c_real: -0.391, c_imag: -0.587, scale: 0.003, name: 'Siegel Disk' },
+    'san-marco': { cx: 0, cy: 0, c_real: -0.75, c_imag: 0, scale: 0.003, name: 'San Marco' },
+    'spiral': { cx: 0, cy: 0, c_real: -0.70176, c_imag: -0.3842, scale: 0.003, name: 'Spiral' },
+    'dragon': { cx: 0, cy: 0, c_real: -0.8, c_imag: 0.156, scale: 0.003, name: 'Dragon' },
+    'galaxies': { cx: 0, cy: 0, c_real: -0.7269, c_imag: 0.1889, scale: 0.003, name: 'Galaxies' },
+    'frost': { cx: 0, cy: 0, c_real: 0.285, c_imag: 0.01, scale: 0.003, name: 'Frost' }
+  };
+
+  // Load custom Julia sets from localStorage
+  function loadCustomJuliaSets(){
+    const stored = localStorage.getItem('mandelscope-custom-julia');
+    return stored ? JSON.parse(stored) : {};
+  }
+
+  function saveCustomJuliaSets(customJulia){
+    localStorage.setItem('mandelscope-custom-julia', JSON.stringify(customJulia));
+  }
+
+  let customJuliaSets = loadCustomJuliaSets();
+
+  // Populate Julia dropdown
+  function populateJuliaDropdown(){
+    const juliaSelect = document.getElementById('julia-locations');
+    const firstOption = juliaSelect.firstElementChild;
+    juliaSelect.innerHTML = '';
+    juliaSelect.appendChild(firstOption);
+
+    // Add preset Julia sets
+    const presetGroup = document.createElement('optgroup');
+    presetGroup.label = 'Famous Julia Sets';
+    for(const [key, julia] of Object.entries(presetJuliaSets)){
+      const option = document.createElement('option');
+      option.value = 'preset:' + key;
+      option.textContent = julia.name;
+      presetGroup.appendChild(option);
+    }
+    juliaSelect.appendChild(presetGroup);
+
+    // Add custom Julia sets if any exist
+    if(Object.keys(customJuliaSets).length > 0){
+      const customGroup = document.createElement('optgroup');
+      customGroup.label = 'My Julia Sets';
+      for(const [key, julia] of Object.entries(customJuliaSets)){
+        const option = document.createElement('option');
+        option.value = 'custom:' + key;
+        option.textContent = julia.name;
+        customGroup.appendChild(option);
+      }
+      juliaSelect.appendChild(customGroup);
+    }
+  }
+
+  populateJuliaDropdown();
+
+  // Julia dropdown change handler
+  const juliaSelect = document.getElementById('julia-locations');
+  juliaSelect.addEventListener('change', function(){
+    const selected = this.value;
+    if(selected){
+      let julia = null;
+      if(selected.startsWith('preset:')){
+        const key = selected.substring(7);
+        julia = presetJuliaSets[key];
+      } else if(selected.startsWith('custom:')){
+        const key = selected.substring(7);
+        julia = customJuliaSets[key];
+      }
+      
+      if(julia){
+        // Switch to Julia mode with the specified c value
+        juliaC.x = julia.c_real;
+        juliaC.y = julia.c_imag;
+        
+        if(!isJuliaMode){
+          // Switch from Mandelbrot to Julia mode
+          isJuliaMode = true;
+          juliaInfo.classList.remove('hidden');
+          backToMandelbrotBtn.classList.remove('hidden');
+          updateJuliaDisplay();
+        } else {
+          // Already in Julia mode, just update the c value
+          updateJuliaDisplay();
+        }
+        
+        // Animate to the view
+        animateView(julia.cx, julia.cy, julia.scale);
+        
+        // Reset dropdown after a short delay
+        setTimeout(() => {
+          this.value = '';
+        }, 300);
+      }
+    }
+  });
+
+  // Save Julia Set functionality
+  const menuSaveJulia = document.getElementById('menu-save-julia');
+  const saveJuliaModal = document.getElementById('save-julia-modal');
+  const juliaNameInput = document.getElementById('julia-name-input');
+  const saveJuliaBtn = document.getElementById('save-julia-btn');
+  const cancelJuliaBtn = document.getElementById('cancel-julia-btn');
+
+  menuSaveJulia.addEventListener('click', function(){
+    hideContextMenu();
+    // Only allow saving in Julia mode
+    if(!isJuliaMode){
+      alert('Julia set saving is only available in Julia mode');
+      return;
+    }
+    // Show modal and focus input
+    saveJuliaModal.classList.remove('hidden');
+    juliaNameInput.value = '';
+    juliaNameInput.focus();
+  });
+
+  function saveCurrentJuliaSet(){
+    const name = juliaNameInput.value.trim();
+    if(!name){
+      alert('Please enter a name for this Julia set');
+      return;
+    }
+
+    // Generate a unique key
+    const key = 'julia_' + Date.now();
+    
+    // Save Julia set
+    customJuliaSets[key] = {
+      name: name,
+      cx: view.cx,
+      cy: view.cy,
+      scale: view.scale,
+      c_real: juliaC.x,
+      c_imag: juliaC.y
+    };
+
+    saveCustomJuliaSets(customJuliaSets);
+    populateJuliaDropdown();
+
+    // Close modal
+    saveJuliaModal.classList.add('hidden');
+  }
+
+  saveJuliaBtn.addEventListener('click', saveCurrentJuliaSet);
+  
+  cancelJuliaBtn.addEventListener('click', function(){
+    saveJuliaModal.classList.add('hidden');
+  });
+
+  // Allow Enter key to save
+  juliaNameInput.addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){
+      saveCurrentJuliaSet();
+    } else if(e.key === 'Escape'){
+      saveJuliaModal.classList.add('hidden');
+    }
+  });
+
+  // Close modal when clicking outside
+  saveJuliaModal.addEventListener('click', function(e){
+    if(e.target === saveJuliaModal){
+      saveJuliaModal.classList.add('hidden');
+    }
+  });
+
+  // Manage Julia Sets functionality
+  const manageJuliaBtn = document.getElementById('manage-julia-btn');
+  const manageJuliaModal = document.getElementById('manage-julia-modal');
+  const manageJuliaList = document.getElementById('manage-julia-list');
+  const closeManageJuliaBtn = document.getElementById('close-manage-julia-btn');
+
+  function populateManageJuliaList(){
+    manageJuliaList.innerHTML = '';
+    
+    if(Object.keys(customJuliaSets).length === 0){
+      return; // Empty state handled by CSS
+    }
+
+    for(const [key, julia] of Object.entries(customJuliaSets)){
+      const item = document.createElement('div');
+      item.className = 'location-item';
+      
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'location-name';
+      nameSpan.textContent = julia.name;
+      
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'delete-location-btn';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.addEventListener('click', function(){
+        if(confirm(`Delete "${julia.name}"?`)){
+          delete customJuliaSets[key];
+          saveCustomJuliaSets(customJuliaSets);
+          populateJuliaDropdown();
+          populateManageJuliaList();
+        }
+      });
+      
+      item.appendChild(nameSpan);
+      item.appendChild(deleteBtn);
+      manageJuliaList.appendChild(item);
+    }
+  }
+
+  manageJuliaBtn.addEventListener('click', function(){
+    populateManageJuliaList();
+    manageJuliaModal.classList.remove('hidden');
+  });
+
+  closeManageJuliaBtn.addEventListener('click', function(){
+    manageJuliaModal.classList.add('hidden');
+  });
+
+  manageJuliaModal.addEventListener('click', function(e){
+    if(e.target === manageJuliaModal){
+      manageJuliaModal.classList.add('hidden');
     }
   });
 
