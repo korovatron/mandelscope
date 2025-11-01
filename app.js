@@ -1539,10 +1539,13 @@
       const dy = t1.clientY - t2.clientY;
       initialDistance = Math.sqrt(dx*dx + dy*dy);
       initialScale = view.scale;
-      // Center of pinch (not used for pan)
+      // Center of pinch - convert CSS pixels to canvas pixels
       const cx = (t1.clientX + t2.clientX) / 2 - rect.left;
       const cy = (t1.clientY + t2.clientY) / 2 - rect.top;
-      touchStart = {x: cx * devicePixelRatio, y: cy * devicePixelRatio};
+      // Use actual canvas to CSS pixel ratio (same as pan code)
+      const actualRatioX = canvasGL.width / canvasGL.clientWidth;
+      const actualRatioY = canvasGL.height / canvasGL.clientHeight;
+      touchStart = {x: cx * actualRatioX, y: cy * actualRatioY};
     }
   }, {passive: false});
 
