@@ -1965,8 +1965,21 @@
     juliaInfo.classList.remove('hidden');
     backToMandelbrotBtn.classList.remove('hidden');
     updateJuliaDisplay();
-    resetView();
+    
+    // Start from extremely zoomed out view
+    view.cx = 0;
+    view.cy = 0;
+    view.scale = Math.min(maxScale, Math.max(20.0 / canvasGL.width, 20.0 / canvasGL.height));
+    syncViewToCenter();
+    updateMaxIter();
+    updateZoomDisplay();
     requestRender();
+    
+    // Animate to normal Julia set starting position
+    setTimeout(() => {
+      const targetScale = Math.min(maxScale, Math.max(4.0 / canvasGL.width, 4.0 / canvasGL.height));
+      animateView(0, 0, targetScale, 1200); // 1.2 second smooth zoom
+    }, 100);
   }
 
   function switchToMandelbrot(){
