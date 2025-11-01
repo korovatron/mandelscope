@@ -1467,15 +1467,6 @@
       const ty = touches[0].clientY - rect.top;
       touchStart = {x: tx, y: ty};
       
-      // Show coordinates on touch in Mandelbrot mode
-      if(!isJuliaMode){
-        const actualRatioX = canvasGL.width / canvasGL.clientWidth;
-        const actualRatioY = canvasGL.height / canvasGL.clientHeight;
-        const mx = tx * actualRatioX;
-        const my = ty * actualRatioY;
-        updateCoordinateDisplay(mx, my);
-      }
-      
       // Start long press timer
       // Calculate actual CSS to canvas pixel ratio (accounts for throttling on mobile)
       const actualRatioX = canvasGL.width / canvasGL.clientWidth;
@@ -1565,11 +1556,6 @@
         const actualRatioY = canvasGL.height / canvasGL.clientHeight;
         const dx = (tx - touchStart.x) * actualRatioX;
         const dy = (ty - touchStart.y) * actualRatioY;
-        
-        // Update coordinate display on touch move
-        const mx = tx * actualRatioX;
-        const my = ty * actualRatioY;
-        updateCoordinateDisplay(mx, my);
         // Pan using Decimal precision
         const deltaRe = new Decimal(-dx * view.scale);
         const deltaIm = new Decimal(dy * view.scale);
@@ -1631,14 +1617,8 @@
         x: e.touches[0].clientX - rect.left,
         y: e.touches[0].clientY - rect.top
       };
-      // Update coordinate display for remaining finger
-      const actualRatioX = canvasGL.width / canvasGL.clientWidth;
-      const actualRatioY = canvasGL.height / canvasGL.clientHeight;
-      const mx = touchStart.x * actualRatioX;
-      const my = touchStart.y * actualRatioY;
-      updateCoordinateDisplay(mx, my);
     } else if(e.touches.length === 0){
-      // All touches ended - hide coordinate display
+      // All touches ended
       coordInfo.classList.add('hidden');
       touchStart = null;
       initialDistance = null;
