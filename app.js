@@ -21,6 +21,7 @@
   const titleScreen = document.getElementById('title-screen');
   const startBtn = document.getElementById('start-btn');
   const titleLogoCanvas = document.getElementById('title-logo-canvas');
+  let appStarted = false; // Flag to prevent rendering before title screen dismissal
   const controlsOverlay = document.getElementById('controls-overlay');
   const closeControlsBtn = document.getElementById('close-controls-btn');
   const showControlsBtn = document.getElementById('show-controls-btn');
@@ -50,6 +51,8 @@
   };
   
   function dismissTitleScreen(){
+    appStarted = true; // Enable rendering
+    
     // Always start in Mandelbrot mode
     if(isJuliaMode){
       isJuliaMode = false;
@@ -64,7 +67,6 @@
     syncViewToCenter();
     updateMaxIter();
     updateZoomDisplay();
-    requestRender();
     
     // Hide title screen
     titleScreen.classList.add('hidden');
@@ -72,11 +74,9 @@
       titleScreen.style.display = 'none';
     }, 300);
     
-    // Animate to normal starting position after a brief delay
-    setTimeout(() => {
-      const targetScale = Math.min(maxScale, Math.max(3.5 / canvasGL.width, 2.5 / canvasGL.height));
-      animateView(-0.75, 0, targetScale, 1500); // 1.5 second smooth zoom
-    }, 400);
+    // Start animation immediately - the animation will handle rendering
+    const targetScale = Math.min(maxScale, Math.max(3.5 / canvasGL.width, 2.5 / canvasGL.height));
+    animateView(-0.75, 0, targetScale, 1500); // 1.5 second smooth zoom
   }
   
   // Controls overlay handlers
@@ -590,10 +590,12 @@
       // store baseScale for human-friendly magnification display
       resize.baseScale = view.scale;
       resize._initialized = true;
-      // Only reset view on first initialization
-      resetView();
-    } else {
-      // On subsequent resizes, just re-render at current position
+      // Only reset view on first initialization, but don't render yet if app hasn't started
+      if(appStarted){
+        resetView();
+      }
+    } else if(appStarted){
+      // On subsequent resizes, just re-render at current position (only if app has started)
       requestRender();
     }
   }
@@ -1228,6 +1230,7 @@
   }
 
   function requestRender(){
+    if(!appStarted) return; // Don't render until app has started
     // tiny debounce to avoid spamming
     if(requestRender._t) clearTimeout(requestRender._t);
     requestRender._t = setTimeout(()=>{ render(); }, 10);
