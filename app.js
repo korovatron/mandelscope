@@ -148,6 +148,10 @@
   
   deepZoomOkBtn.addEventListener('click', hideDeepZoomModal);
 
+  // Detect mobile/tablet devices
+  const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                         (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+
   // Detect GPU capabilities
   let hasDiscreteGPU = false;
   let gpuInfo = 'Unknown';
@@ -167,6 +171,7 @@
       
       console.log('GPU Detected:', renderer);
       console.log('Discrete GPU:', hasDiscreteGPU);
+      console.log('Mobile Device:', isMobileDevice);
     }
   }
 
@@ -338,14 +343,14 @@
       const iter = Math.min(20000, Math.max(100, Math.floor(400 + zoomDepth * 400)));
       return iter;
     } else {
-      // Integrated/Mobile GPU: More conservative cap to prevent crashes
-      // Use same formula but cap at 8000 for stability on mobile devices
+      // Integrated/Mobile GPU: Conservative cap for smooth performance
+      // Cap at 4000 iterations to prevent sluggishness on iPhone/iPad
       // At scale 1e-2: ~800 iterations
       // At scale 1e-7: ~2400 iterations
-      // At scale 1e-15: ~5600 iterations
-      // At scale 1e-20: ~8000 iterations (capped)
-      // At scale 1e-38: would be ~15600 but capped at 8000
-      const iter = Math.min(8000, Math.max(100, Math.floor(400 + zoomDepth * 400)));
+      // At scale 1e-10: ~3600 iterations
+      // At scale 1e-11+: ~4000 iterations (capped)
+      // Users can manually increase via slider if needed
+      const iter = Math.min(4000, Math.max(100, Math.floor(400 + zoomDepth * 400)));
       return iter;
     }
   }
@@ -1634,6 +1639,15 @@
       initialScale = null;
     }
   }, {passive: false});
+
+  // Set slider max based on device type
+  if(isMobileDevice){
+    iterSlider.max = 8000;
+    console.log('Mobile device: slider max set to 8000');
+  } else {
+    iterSlider.max = 20000;
+    console.log('Desktop device: slider max set to 20000');
+  }
 
   // UI controls
   autoIterCheckbox.addEventListener('change', function(){
