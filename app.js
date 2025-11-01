@@ -131,6 +131,8 @@
   const settingsPanel = document.getElementById('settings-panel');
   const orbitQualityInfo = document.getElementById('orbit-quality-info');
   const orbitQualityValue = document.getElementById('orbit-quality-value');
+  const coordInfo = document.getElementById('coord-info');
+  const coordValue = document.getElementById('coord-value');
 
   // Deep Zoom Modal
   const deepZoomModal = document.getElementById('deep-zoom-modal');
@@ -179,10 +181,16 @@
 
   // Zoom limits: maxScale is most zoomed out (large value), minScale is most zoomed in (small value)
   let maxScale = 8e-2; // Maximum zoom out level (0.08)
-  const minScale = 1e-50; // Deep zoom limit with perturbation method
+  const minScale = 1e-50; // Deep zoom limit with perturbation method (Mandelbrot only)
+  const minScaleJulia = 1e-7; // Julia set limit (no perturbation available)
   const deepZoomThreshold = 1e-7; // Switch to perturbation method below this scale
   let useDeepZoom = false; // Track if we're in deep zoom mode
   let hasShownDeepZoomWarning = false; // Show warning only once per session
+  
+  // Get current minimum scale based on mode
+  function getMinScale(){
+    return isJuliaMode ? minScaleJulia : minScale;
+  }
 
   let maxIter = Number(iterSlider.value);
   let isAutoIter = autoIterCheckbox.checked;
@@ -324,8 +332,10 @@
       // At scale 1e-15: ~5600 iterations
       // At scale 1e-20: ~8000 iterations
       // At scale 1e-25: ~10000 iterations
-      // At scale 1e-30: ~12000 iterations (ultimate deep zoom)
-      const iter = Math.min(12000, Math.max(100, Math.floor(400 + zoomDepth * 400)));
+      // At scale 1e-30: ~12000 iterations
+      // At scale 1e-37: ~15200 iterations
+      // At scale 1e-45: ~18400 iterations (ultimate deep zoom)
+      const iter = Math.min(20000, Math.max(100, Math.floor(400 + zoomDepth * 400)));
       return iter;
     } else {
       // Integrated/Software GPU: More conservative scaling
@@ -359,7 +369,7 @@
     const initialScale = maxScale; // maxScale is set to initial "fit all" scale
     const magnification = initialScale / view.scale;
     
-    // Format zoom level
+    // Format zoom level with scientific notation for extreme zooms
     let zoomText;
     if(magnification < 1000){
       zoomText = magnification.toFixed(1) + '×';
@@ -367,14 +377,23 @@
       zoomText = (magnification / 1000).toFixed(1) + 'K×';
     } else if(magnification < 1e9){
       zoomText = (magnification / 1e6).toFixed(1) + 'M×';
-    } else {
+    } else if(magnification < 1e12){
       zoomText = (magnification / 1e9).toFixed(1) + 'G×';
+    } else {
+      // Use scientific notation for extreme zooms (trillion+)
+      zoomText = magnification.toExponential(2) + '×';
     }
     
     zoomLevelSpan.textContent = zoomText;
     
-    // Format scale in scientific notation
-    scaleValueSpan.textContent = view.scale.toExponential(2);
+    // Format scale with superscript notation (e.g., 1.3×10⁻³⁸)
+    const expNotation = view.scale.toExponential(1);
+    const [mantissa, exponent] = expNotation.split('e');
+    const exp = parseInt(exponent);
+    // Convert exponent to superscript
+    const superscriptDigits = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻'};
+    const superExp = exp.toString().split('').map(c => superscriptDigits[c]).join('');
+    scaleValueSpan.innerHTML = `${mantissa}×10${superExp}`;
     
     // Show zoom info and set fade-out timer
     const zoomInfo = document.getElementById('zoom-info');
@@ -696,7 +715,7 @@
       
       float x = 0.0; float y = 0.0;
       float xx = 0.0; float yy = 0.0;
-      const int MAX_ITERS = 12000;
+      const int MAX_ITERS = 20000;
       int iter = u_iter;
       float mag2 = 0.0;
       
@@ -790,7 +809,7 @@
       // map gl coords (-1..1) to pixel coords
       vec2 uv = (v_pos * 0.5 + 0.5) * u_resolution;
       
-      const int MAX_ITERS = 12000;
+      const int MAX_ITERS = 20000;
       int iter = u_iter;
       float mag2 = 0.0;
       
@@ -973,7 +992,7 @@
       float x = u_center.x + (uv.x - u_resolution.x * 0.5) * u_scale;
       float y = u_center.y + (uv.y - u_resolution.y * 0.5) * u_scale;
       float xx = x*x; float yy = y*y;
-      const int MAX_ITERS = 12000;
+      const int MAX_ITERS = 20000;
       int iter = u_iter;
       float mag2 = xx + yy;
       
@@ -1186,7 +1205,7 @@
     const oldScale = view.scale;
     view.scale *= zoomFactor;
     // Clamp scale to prevent zooming out too far or in too deep
-    view.scale = Math.max(minScale, Math.min(maxScale, view.scale));
+    view.scale = Math.max(getMinScale(), Math.min(maxScale, view.scale));
     const actualZoomFactor = view.scale / oldScale;
 
     // Calculate how much the point under cursor moves in complex space
@@ -1252,6 +1271,53 @@
       lastMouse = {x: mx_css, y: my_css};
     }
     // Right click handled by contextmenu event
+  });
+
+  // Function to update coordinate display
+  function updateCoordinateDisplay(mx, my){
+    // Only show coordinates in Mandelbrot mode
+    if(isJuliaMode){
+      coordInfo.classList.add('hidden');
+      return;
+    }
+    
+    // Calculate complex plane coordinates using high-precision center
+    const dx = (mx - canvasGL.width / 2) * view.scale;
+    const dy = (my - canvasGL.height / 2) * view.scale;
+    const real = centerRe.add(new Decimal(dx));
+    const imag = centerIm.sub(new Decimal(dy));
+    
+    // Format with appropriate precision based on zoom level
+    let precision;
+    if(view.scale < 1e-30) precision = 38;
+    else if(view.scale < 1e-20) precision = 28;
+    else if(view.scale < 1e-10) precision = 18;
+    else if(view.scale < 1e-5) precision = 12;
+    else precision = 8;
+    
+    const realStr = real.toFixed(precision);
+    const imagStr = imag.toFixed(precision);
+    const sign = imag.isNegative() ? '-' : '+';
+    const imagAbs = imag.abs().toFixed(precision);
+    
+    // Split into two lines for better mobile display
+    coordValue.innerHTML = `${realStr} ${sign}<br>${imagAbs}i`;
+    coordInfo.classList.remove('hidden');
+  }
+
+  // Update coordinate display on mouse move over canvas
+  canvasGL.addEventListener('mousemove', function(e){
+    const rect = canvasGL.getBoundingClientRect();
+    const mx_css = (e.clientX - rect.left);
+    const my_css = (e.clientY - rect.top);
+    const mx = mx_css * devicePixelRatio;
+    const my = my_css * devicePixelRatio;
+    updateCoordinateDisplay(mx, my);
+  });
+  
+  // Hide coordinate display when mouse leaves canvas
+  canvasGL.addEventListener('mouseleave', function(){
+    coordInfo.classList.add('hidden');
   });
 
   // Right-click context menu
@@ -1348,7 +1414,7 @@
   const scaleFactor = (mode === 'fill') ? Math.max(rectW / cw, rectH / ch) : Math.min(rectW / cw, rectH / ch);
   let newScale = view.scale * scaleFactor;
   // Clamp to zoom limits
-  newScale = Math.max(minScale, Math.min(maxScale, newScale));
+  newScale = Math.max(getMinScale(), Math.min(maxScale, newScale));
         console.log('Zoom-rect -> rectW,rectH,cw,ch,oldScale,newScale:', rectW, rectH, cw, ch, view.scale, newScale);
         // Animate to the new view
         animateView(centerComplex.x, centerComplex.y, newScale);
@@ -1366,7 +1432,7 @@
     const complex = pixelToComplex(mx, my);
     let newScale = view.scale * 0.5;
     // Clamp to zoom limits
-    newScale = Math.max(minScale, Math.min(maxScale, newScale));
+    newScale = Math.max(getMinScale(), Math.min(maxScale, newScale));
     // Only animate if scale actually changes (prevents pan-only when at zoom limit)
     // Use relative threshold for deep zooms
     if(Math.abs(newScale - view.scale) > view.scale * 0.001){
@@ -1388,6 +1454,15 @@
       const tx = touches[0].clientX - rect.left;
       const ty = touches[0].clientY - rect.top;
       touchStart = {x: tx, y: ty};
+      
+      // Show coordinates on touch in Mandelbrot mode
+      if(!isJuliaMode){
+        const actualRatioX = canvasGL.width / canvasGL.clientWidth;
+        const actualRatioY = canvasGL.height / canvasGL.clientHeight;
+        const mx = tx * actualRatioX;
+        const my = ty * actualRatioY;
+        updateCoordinateDisplay(mx, my);
+      }
       
       // Start long press timer
       // Calculate actual CSS to canvas pixel ratio (accounts for throttling on mobile)
@@ -1414,7 +1489,7 @@
         const complex = pixelToComplex(mx, my);
         let newScale = view.scale * 0.5;
         // Clamp to zoom limits
-        newScale = Math.max(minScale, Math.min(maxScale, newScale));
+        newScale = Math.max(getMinScale(), Math.min(maxScale, newScale));
         // Only animate if scale actually changes (prevents pan-only when at zoom limit)
         // Use relative threshold for deep zooms
         if(Math.abs(newScale - view.scale) > view.scale * 0.001){
@@ -1478,6 +1553,11 @@
         const actualRatioY = canvasGL.height / canvasGL.clientHeight;
         const dx = (tx - touchStart.x) * actualRatioX;
         const dy = (ty - touchStart.y) * actualRatioY;
+        
+        // Update coordinate display on touch move
+        const mx = tx * actualRatioX;
+        const my = ty * actualRatioY;
+        updateCoordinateDisplay(mx, my);
         // Pan using Decimal precision
         const deltaRe = new Decimal(-dx * view.scale);
         const deltaIm = new Decimal(dy * view.scale);
@@ -1499,7 +1579,7 @@
       const oldScale = view.scale;
       let newScale = initialScale / scaleFactor;
       // Clamp scale to prevent zooming out too far or in too deep
-      newScale = Math.max(minScale, Math.min(maxScale, newScale));
+      newScale = Math.max(getMinScale(), Math.min(maxScale, newScale));
       view.scale = newScale;
       const actualZoomFactor = newScale / oldScale;
       
@@ -1539,7 +1619,15 @@
         x: e.touches[0].clientX - rect.left,
         y: e.touches[0].clientY - rect.top
       };
+      // Update coordinate display for remaining finger
+      const actualRatioX = canvasGL.width / canvasGL.clientWidth;
+      const actualRatioY = canvasGL.height / canvasGL.clientHeight;
+      const mx = touchStart.x * actualRatioX;
+      const my = touchStart.y * actualRatioY;
+      updateCoordinateDisplay(mx, my);
     } else if(e.touches.length === 0){
+      // All touches ended - hide coordinate display
+      coordInfo.classList.add('hidden');
       touchStart = null;
       initialDistance = null;
       initialScale = null;
@@ -1586,7 +1674,15 @@
     'mini-mandelbrot': { cx: -0.7453, cy: 0.1127, scale: 0.000008, name: 'Mini Mandelbrot' },
     'misiurewicz': { cx: -0.1011, cy: 0.9563, scale: 0.0003, name: 'Misiurewicz Point' },
     'scepter': { cx: -1.2569, cy: 0.3803, scale: 0.0003, name: 'Scepter Valley' },
-    'satellite': { cx: -0.1565, cy: 1.0325, scale: 0.0001, name: 'Satellite' }
+    'satellite': { cx: -0.1565, cy: 1.0325, scale: 0.0001, name: 'Satellite' },
+    'final-frontier': { 
+      cx: -0.6701643319867839, 
+      cy: 0.31596038546507194, 
+      scale: 1.3332685139720305e-38, 
+      name: 'The Final Frontier (e-38)',
+      centerRe: "-0.67016433198678397994845461647470317075281182378517295338727305111964",
+      centerIm: "0.315960385465071955462877684565985094697084162998605619399575406798352"
+    }
   };
 
   // Load custom locations from localStorage
@@ -1732,7 +1828,7 @@
     // Zoom with +/- (center point stays fixed in Decimal precision)
     if(keysPressed.has('+') || keysPressed.has('=')){
       view.scale *= zoomSpeed;
-      view.scale = Math.max(minScale, view.scale);
+      view.scale = Math.max(getMinScale(), view.scale);
       changed = true;
     }
     if(keysPressed.has('-') || keysPressed.has('_')){
@@ -1971,6 +2067,8 @@
 
   // Allow Enter key to save
   locationNameInput.addEventListener('keydown', function(e){
+    // Stop event from bubbling to document keydown handler
+    e.stopPropagation();
     if(e.key === 'Enter'){
       saveCurrentLocation();
     } else if(e.key === 'Escape'){
@@ -2199,6 +2297,8 @@
 
   // Allow Enter key to save
   juliaNameInput.addEventListener('keydown', function(e){
+    // Stop event from bubbling to document keydown handler
+    e.stopPropagation();
     if(e.key === 'Enter'){
       saveCurrentJuliaSet();
     } else if(e.key === 'Escape'){
