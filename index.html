@@ -276,13 +276,23 @@
         </ul>
         <p style="margin-bottom: 20px;">When orbit quality drops, panning or zooming slightly will recalculate a new reference orbit and restore quality. Areas near black (in-set) regions typically have better orbit quality than boundary areas.</p>
 
-        <h3 style="margin-top: 30px; margin-bottom: 15px;">Iterations and Performance</h3>
-        <p style="margin-bottom: 15px;">The <strong>max iterations</strong> setting controls how many times we iterate the formula before giving up. Higher values reveal more detail but require more computation:</p>
+        <h3 style="margin-top: 30px; margin-bottom: 15px;">Automatic Iteration Optimisation</h3>
+        <p style="margin-bottom: 15px;">The <strong>max iterations</strong> setting controls how many times we iterate the formula before giving up. Higher values reveal more detail but require more computation. In <strong>Auto mode</strong> (recommended), the app uses two different strategies:</p>
         <ul style="line-height: 2.2; margin-bottom: 15px;">
-          <li><strong>Auto mode:</strong> Automatically scales iterations based on zoom depth (recommended)</li>
-          <li><strong>Manual mode:</strong> Allows fine-tuning for specific artistic effects</li>
-          <li><strong>Mobile:</strong> Conservative limits (max 1500 auto, 4000 manual) for smooth performance</li>
-          <li><strong>Desktop:</strong> Higher limits (max 20000) for extreme deep zoom exploration</li>
+          <li><strong>Shallow zoom (&gt;10<sup>-7</sup>):</strong> Iterations scale linearly with zoom depth (deeper = more iterations)</li>
+          <li><strong>Deep zoom (≤10<sup>-7</sup>):</strong> Intelligent optimisation searches for the iteration count that achieves 92-99.5% orbit quality</li>
+        </ul>
+        <p style="margin-bottom: 15px;">The deep zoom optimiser uses a three-phase search algorithm:</p>
+        <ol style="line-height: 2.2; margin-bottom: 15px; padding-left: 25px;">
+          <li><strong>Coarse search:</strong> Tests 40 samples across a wide range (20%-300% of current value)</li>
+          <li><strong>Fine search:</strong> Narrows in around the best result with smaller steps</li>
+          <li><strong>Ultra-fine search:</strong> Final refinement when quality is 95-99%</li>
+        </ol>
+        <p style="margin-bottom: 15px;">Watch for the orange <strong>"⚙️ Optimising..."</strong> indicator when this is running. It appears automatically when orbit quality drops below 95%. The optimiser runs asynchronously so you can continue panning and zooming.</p>
+        <p style="margin-bottom: 15px;"><strong>Manual mode</strong> lets you override the optimiser and set iterations yourself:</p>
+        <ul style="line-height: 2.2; margin-bottom: 15px;">
+          <li><strong>Mobile:</strong> Slider range 50-4,000 iterations</li>
+          <li><strong>Desktop:</strong> Slider range 50-20,000 iterations</li>
         </ul>
         <p style="margin-bottom: 20px;">Black areas (points inside the set) always use the maximum iterations, while coloured areas (points that escape) typically use fewer iterations. This is why panning through black regions is more GPU-intensive.</p>
 
