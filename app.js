@@ -129,6 +129,22 @@
   const menuShowJulia = document.getElementById('menu-show-julia');
   const menuToggle = document.getElementById('menu-toggle');
   const settingsPanel = document.getElementById('settings-panel');
+  const orbitQualityInfo = document.getElementById('orbit-quality-info');
+  const orbitQualityValue = document.getElementById('orbit-quality-value');
+
+  // Deep Zoom Modal
+  const deepZoomModal = document.getElementById('deep-zoom-modal');
+  const deepZoomOkBtn = document.getElementById('deep-zoom-ok-btn');
+  
+  function showDeepZoomModal(){
+    deepZoomModal.classList.remove('hidden');
+  }
+  
+  function hideDeepZoomModal(){
+    deepZoomModal.classList.add('hidden');
+  }
+  
+  deepZoomOkBtn.addEventListener('click', hideDeepZoomModal);
 
   // Detect GPU capabilities
   let hasDiscreteGPU = false;
@@ -163,7 +179,10 @@
 
   // Zoom limits: maxScale is most zoomed out (large value), minScale is most zoomed in (small value)
   let maxScale = 8e-2; // Maximum zoom out level (0.08)
-  const minScale = 1e-7; // WebGL single precision limit (~7 significant digits)
+  const minScale = 1e-50; // Deep zoom limit with perturbation method
+  const deepZoomThreshold = 1e-7; // Switch to perturbation method below this scale
+  let useDeepZoom = false; // Track if we're in deep zoom mode
+  let hasShownDeepZoomWarning = false; // Show warning only once per session
 
   let maxIter = Number(iterSlider.value);
   let isAutoIter = autoIterCheckbox.checked;
@@ -174,22 +193,148 @@
   let juliaC = {x: -0.7, y: 0.27}; // Default interesting Julia set
   let savedMandelbrotView = null; // Save Mandelbrot view when switching to Julia
 
+  // Deep Zoom (Perturbation Method) Infrastructure
+  // High-precision center using decimal.js
+  const Decimal = window.Decimal;
+  Decimal.set({ precision: 100 }); // 100 significant digits
+  let centerRe = new Decimal(-0.75);
+  let centerIm = new Decimal(0);
+  
+  // Reference orbit caching for smooth panning/zooming
+  let cachedOrbit = null;
+  let cachedCenterRe = centerRe;
+  let cachedCenterIm = centerIm;
+  let cachedScale = view.scale;
+  
+  // Reference orbit texture for GPU
+  let refOrbitTexture = null;
+  
+  // Compute high-precision reference orbit for perturbation method
+  function computeRefOrbit(maxIterations){
+    let zr = new Decimal(0), zi = new Decimal(0);
+    const orbit = [];
+    for(let i = 0; i < maxIterations; i++){
+      orbit.push([zr, zi]);
+      const zr2 = zr.mul(zr).sub(zi.mul(zi)).add(centerRe);
+      const zi2 = zr.mul(zi).mul(2).add(centerIm);
+      zr = zr2; zi = zi2;
+      if(zr.mul(zr).add(zi.mul(zi)).gt(4)) break;
+    }
+    return orbit;
+  }
+  
+  // Upload reference orbit to GPU texture
+  function uploadRefOrbit(orbit){
+    if(!gl) return 0;
+    const len = orbit.length;
+    const data = new Float32Array(len * 4);
+    for(let i = 0; i < len; i++){
+      data[4*i] = parseFloat(orbit[i][0].toString());
+      data[4*i+1] = parseFloat(orbit[i][1].toString());
+      data[4*i+2] = 0.0;
+      data[4*i+3] = 0.0;
+    }
+    
+    if(!refOrbitTexture){
+      refOrbitTexture = gl.createTexture();
+    }
+    gl.bindTexture(gl.TEXTURE_2D, refOrbitTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    
+    // Check if OES_texture_float extension is available
+    const extFloat = gl.getExtension('OES_texture_float');
+    if(extFloat){
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, len, 1, 0, gl.RGBA, gl.FLOAT, data);
+    } else {
+      // Fallback: encode as RGBA bytes (less precise but compatible)
+      console.warn('OES_texture_float not available, using byte encoding');
+      const byteData = new Uint8Array(len * 4);
+      for(let i = 0; i < len * 4; i++){
+        byteData[i] = Math.floor((data[i] + 2) * 63.75); // Simple encoding
+      }
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, len, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, byteData);
+    }
+    
+    return len;
+  }
+  
+  // Get or compute cached reference orbit
+  function getRefOrbit(maxIterations){
+    // Check if we need to recompute orbit
+    const deltaRe = centerRe.sub(cachedCenterRe).abs();
+    const deltaIm = centerIm.sub(cachedCenterIm).abs();
+    
+    // At extreme zoom, use much tighter threshold to avoid artifacts during panning
+    // At e-20 zoom, 0.1% of view is still meaningful
+    const thresholdPercent = view.scale < 1e-15 ? 0.001 : 0.01; // 0.1% for extreme zoom, 1% for normal
+    const threshold = new Decimal(view.scale).mul(thresholdPercent);
+    
+    // Also recompute if scale changed significantly or max iterations increased
+    const scaleRatio = cachedScale > 0 ? Math.abs(Math.log(view.scale / cachedScale)) : Infinity;
+    const needsRecompute = !cachedOrbit || 
+                          deltaRe.gt(threshold) || 
+                          deltaIm.gt(threshold) || 
+                          scaleRatio > 0.1 || // Recompute if scale changed by >10%
+                          maxIterations > cachedOrbit.length;
+    
+    if(needsRecompute){
+      cachedOrbit = computeRefOrbit(maxIterations);
+      cachedCenterRe = centerRe;
+      cachedCenterIm = centerIm;
+      cachedScale = view.scale;
+    }
+    
+    return cachedOrbit;
+  }
+
+  // Helper to sync high-precision center with view center (for display only)
+  function syncCenterToView(){
+    view.cx = parseFloat(centerRe.toString());
+    view.cy = parseFloat(centerIm.toString());
+  }
+
+  // Helper to sync view center to high-precision center (ONLY use for initial setup)
+  function syncViewToCenter(){
+    centerRe = new Decimal(view.cx);
+    centerIm = new Decimal(view.cy);
+  }
+
+  // Pan by delta in Decimal precision
+  function panDecimal(deltaReStr, deltaImStr){
+    centerRe = centerRe.add(new Decimal(deltaReStr));
+    centerIm = centerIm.add(new Decimal(deltaImStr));
+    syncCenterToView();
+  }
+
   // Calculate adaptive iteration count based on zoom level
   function calculateAdaptiveIter(){
     const zoomDepth = Math.log10(1 / view.scale);
     
     if(hasDiscreteGPU){
-      // Powerful GPU: Start high, scale up aggressively to 2000
-      // At scale 1e-2: ~500 iterations
-      // At scale 1e-5: ~1250 iterations
-      // At scale 1e-7: ~2000 iterations (maximum quality)
-      const iter = Math.min(2000, Math.max(100, Math.floor(200 + zoomDepth * 250)));
+      // Powerful GPU: Aggressive scaling for ultra-deep zoom
+      // At scale 1e-2: ~800 iterations
+      // At scale 1e-5: ~1800 iterations
+      // At scale 1e-7: ~2400 iterations
+      // At scale 1e-8: ~2800 iterations
+      // At scale 1e-9: ~3200 iterations
+      // At scale 1e-10: ~3600 iterations
+      // At scale 1e-15: ~5600 iterations
+      // At scale 1e-20: ~8000 iterations
+      // At scale 1e-25: ~10000 iterations
+      // At scale 1e-30: ~12000 iterations (ultimate deep zoom)
+      const iter = Math.min(12000, Math.max(100, Math.floor(400 + zoomDepth * 400)));
       return iter;
     } else {
-      // Integrated/Software GPU: Start lower, more conservative
-      // At scale 1e-2: ~150 iterations
-      // At scale 1e-7: ~400 iterations
-      const iter = Math.min(2000, Math.max(50, Math.floor(50 + zoomDepth * 50)));
+      // Integrated/Software GPU: More conservative scaling
+      // At scale 1e-2: ~170 iterations
+      // At scale 1e-7: ~490 iterations
+      // At scale 1e-10: ~650 iterations
+      // At scale 1e-15: ~950 iterations
+      // At scale 1e-20: ~1250 iterations
+      const iter = Math.min(2000, Math.max(50, Math.floor(50 + zoomDepth * 60)));
       return iter;
     }
   }
@@ -283,6 +428,8 @@
       view.cx = animFrom.cx + (animTo.cx - animFrom.cx) * easeT;
       view.cy = animFrom.cy + (animTo.cy - animFrom.cy) * easeT;
       view.scale = animFrom.scale + (animTo.scale - animFrom.scale) * easeT;
+      // Sync high-precision center
+      syncViewToCenter();
       updateMaxIter(); // Update iterations during animation
       updateZoomDisplay(); // Update zoom level display
       requestRender();
@@ -307,6 +454,8 @@
       view.cy = 0;
       view.scale = Math.min(maxScale, Math.max(3.5 / canvasGL.width, 2.5 / canvasGL.height));
     }
+    // Sync high-precision center
+    syncViewToCenter();
     updateMaxIter();
     updateZoomDisplay();
     requestRender();
@@ -503,10 +652,12 @@
   // WebGL renderer: fragment shader computes color per pixel
   // Helper to split a double into high and low 32-bit floats (Veltkamp-Dekker splitting)
   // Use var here to avoid temporal-dead-zone errors when calling render synchronously during startup/resize
-  var glProgram = null;
+  var glProgram = null; // Deep zoom (perturbation) shader
+  var glProgramSimple = null; // Simple shader for normal zoom
   var glProgramJulia = null;
   
-  function createGLProgram(){
+  // Simple Mandelbrot shader (original method, for normal zoom levels)
+  function createGLProgramSimple(){
     if(!gl) return null;
   const vs = `
   attribute vec2 a_pos;
@@ -534,29 +685,216 @@
       else if(hp < 5.0) rgb = vec3(x,0.0,c);
       else rgb = vec3(c,0.0,x);
       float m = v - c;
+      return rgb + m;
+    }
+
+    void main(){
+      // Simple standard Mandelbrot iteration
+      vec2 uv = (v_pos * 0.5 + 0.5) * u_resolution;
+      float x0 = u_center.x + (uv.x - u_resolution.x * 0.5) * u_scale;
+      float y0 = u_center.y + (uv.y - u_resolution.y * 0.5) * u_scale;
+      
+      float x = 0.0; float y = 0.0;
+      float xx = 0.0; float yy = 0.0;
+      const int MAX_ITERS = 12000;
+      int iter = u_iter;
+      float mag2 = 0.0;
+      
+      for(int i = 0; i < MAX_ITERS; i++){
+        if(i >= u_iter) break;
+        y = 2.0*x*y + y0;
+        x = xx - yy + x0;
+        xx = x*x; yy = y*y;
+        mag2 = xx + yy;
+        if(mag2 > 4.0){ iter = i; break; }
+      }
+      
+      if(iter == u_iter){ gl_FragColor = vec4(0.0,0.0,0.0,1.0); return; }
+      
+      float it = float(iter);
+      // smooth iteration
+      float nu = log(log(sqrt(mag2))) / log(2.0);
+      it = it + 1.0 - nu;
+      
+      // Periodic wave coloring that scales with max iterations
+      float bands = float(u_iter) / 50.0; // number of color bands scales with iterations
+      float wave = mod(it / bands, 2.0);
+      float t = (wave < 1.0) ? wave : (2.0 - wave);
+      t = pow(t, 0.7);
+      
+      float hue = mod(240.0 + it * 3.0, 360.0);
+      float sat = 0.85 + 0.15 * t;
+      float light = 0.3 + 0.5 * t;
+      vec3 col = hsv2rgb(hue, sat, light);
+      gl_FragColor = vec4(col, 1.0);
+    }`;
+
+    function compile(src, type){
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      const ok = gl.getShaderParameter(s, gl.COMPILE_STATUS);
+      if(!ok){
+        const log = gl.getShaderInfoLog(s);
+        console.error('Shader compile error:', log);
+        gl.deleteShader(s);
+        return null;
+      }
+      return s;
+    }
+    const vsS = compile(vs, gl.VERTEX_SHADER);
+    const fsS = compile(fs, gl.FRAGMENT_SHADER);
+    if(!vsS || !fsS) return null;
+    const prog = gl.createProgram(); gl.attachShader(prog, vsS); gl.attachShader(prog, fsS);
+    gl.bindAttribLocation(prog, 0, 'a_pos');
+    gl.linkProgram(prog);
+    if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){ console.error(gl.getProgramInfoLog(prog)); return null; }
+    return prog;
+  }
+  
+  function createGLProgram(){
+    if(!gl) return null;
+  const vs = `
+  attribute vec2 a_pos;
+  varying vec2 v_pos;
+  void main(){ v_pos = a_pos; gl_Position = vec4(a_pos,0.0,1.0); }`;
+    const fs = `#ifdef GL_ES
+    precision highp float;
+    #endif
+    varying vec2 v_pos;
+    uniform vec2 u_center;
+    uniform float u_scale;
+    uniform int u_iter;
+    uniform vec2 u_resolution;
+    uniform sampler2D u_refOrbit;
+    uniform int u_refLen;
+    uniform vec2 u_deltaC;
+
+    // hsv to rgb
+    vec3 hsv2rgb(float h, float s, float v){
+      float c = v * s;
+      float hp = mod(h/60.0,6.0);
+      float x = c * (1.0 - abs(mod(hp,2.0)-1.0));
+      vec3 rgb;
+      if(hp < 1.0) rgb = vec3(c,x,0.0);
+      else if(hp < 2.0) rgb = vec3(x,c,0.0);
+      else if(hp < 3.0) rgb = vec3(0.0,c,x);
+      else if(hp < 4.0) rgb = vec3(0.0,x,c);
+      else if(hp < 5.0) rgb = vec3(x,0.0,c);
+      else rgb = vec3(c,0.0,x);
+      float m = v - c;
       return rgb + vec3(m);
     }
 
     void main(){
       // map gl coords (-1..1) to pixel coords
       vec2 uv = (v_pos * 0.5 + 0.5) * u_resolution;
-      float x0 = u_center.x + (uv.x - u_resolution.x * 0.5) * u_scale;
-      float y0 = u_center.y + (uv.y - u_resolution.y * 0.5) * u_scale;
-      float x = 0.0; float y = 0.0; float xx = 0.0; float yy = 0.0;
-      const int MAX_ITERS = 2000;
+      
+      const int MAX_ITERS = 12000;
       int iter = u_iter;
-      for(int i = 0; i < MAX_ITERS; i++){
-        if(i >= u_iter) break;
-        y = 2.0*x*y + y0;
-        x = xx - yy + x0;
-        xx = x*x; yy = y*y;
-        if(xx + yy > 4.0){ iter = i; break; }
+      float mag2 = 0.0;
+      
+      // deltaC is the pixel offset from reference center (high precision via small offset)
+      vec2 deltaC = vec2(
+        (uv.x - u_resolution.x * 0.5) * u_scale,
+        (uv.y - u_resolution.y * 0.5) * u_scale
+      ) + u_deltaC;
+      
+      // If reference orbit is too short, fall back to standard iteration
+      // This happens when the center point is outside or near the edge of the Mandelbrot set
+      if(u_refLen < u_iter * 3 / 4){
+        // Standard Mandelbrot iteration using low-precision center
+        float x0 = u_center.x + (uv.x - u_resolution.x * 0.5) * u_scale;
+        float y0 = u_center.y + (uv.y - u_resolution.y * 0.5) * u_scale;
+        float x = 0.0; float y = 0.0; float xx = 0.0; float yy = 0.0;
+        for(int i = 0; i < MAX_ITERS; i++){
+          if(i >= u_iter) break;
+          y = 2.0*x*y + y0;
+          x = xx - yy + x0;
+          xx = x*x; yy = y*y;
+          if(xx + yy > 4.0){ iter = i; mag2 = xx + yy; break; }
+        }
+      } else {
+        // Perturbation method for deep zoom
+        // delta starts at 0 (z_0 = 0 for Mandelbrot)
+        vec2 delta = vec2(0.0, 0.0);
+        bool usedStandard = false;
+        vec2 c_standard = vec2(0.0, 0.0);
+        float x = 0.0; float y = 0.0;
+        
+        for(int i = 0; i < MAX_ITERS; i++){
+          if(i >= u_iter) break;
+          
+          // If we've exhausted the reference orbit or already switched, use standard iteration
+          if(i >= u_refLen || usedStandard){
+            if(!usedStandard){
+              // First time switching: compute c from reference c + deltaC
+              vec2 c_ref = texture2D(u_refOrbit, vec2(0.5/float(u_refLen), 0.5)).xy;
+              // For Mandelbrot, c_ref should be the center c value
+              // Actually, the reference orbit is computed with c = centerRe/centerIm
+              // So this pixel's c = c_ref + deltaC (but c_ref is NOT stored, it's implicit)
+              // We need to get the last z value and continue
+              vec2 zref = texture2D(u_refOrbit, vec2((float(u_refLen-1) + 0.5)/float(u_refLen), 0.5)).xy;
+              vec2 z = zref + delta;
+              x = z.x; y = z.y;
+              // c value for this pixel (reconstructed as reference c + offset)
+              // Since reference orbit uses c=(centerRe, centerIm), this is deltaC
+              c_standard = deltaC;
+              usedStandard = true;
+            }
+            // Standard iteration using deltaC as c (since it's offset from reference center)
+            float yy = y*y; float xx = x*x;
+            mag2 = xx + yy;
+            if(mag2 > 4.0){ iter = i; break; }
+            y = 2.0*x*y + c_standard.y;
+            x = xx - yy + c_standard.x;
+          } else {
+            // Perturbation iteration
+            // Sample reference orbit z_ref at iteration i
+            vec2 zref = texture2D(u_refOrbit, vec2((float(i) + 0.5)/float(u_refLen), 0.5)).xy;
+            
+            // Glitch detection: Check if perturbation has broken down
+            float deltaMag2 = dot(delta, delta);
+            
+            // Glitch conditions (conservative to avoid false positives):
+            // 1. NaN check: NaN is the only value that doesn't equal itself
+            // 2. Delta magnitude explodes beyond reasonable bounds
+            bool isNaN = (deltaMag2 != deltaMag2);
+            bool tooLarge = (deltaMag2 > 1e10);
+            
+            if(isNaN || tooLarge){
+              // Perturbation has broken down - switch to standard iteration
+              vec2 z = zref + delta;
+              x = z.x; y = z.y;
+              c_standard = deltaC;
+              usedStandard = true;
+              continue;
+            }
+            
+            // Compute z = zref + delta
+            vec2 zplus = zref + delta;
+            mag2 = dot(zplus, zplus);
+            
+            // Escape test
+            if(mag2 > 4.0){
+              iter = i;
+              break;
+            }
+            
+            // Perturbation iteration: delta_{n+1} = 2*zref*delta + delta^2 + deltaC
+            delta = vec2(
+              2.0*(zref.x*delta.x - zref.y*delta.y) + (delta.x*delta.x - delta.y*delta.y) + deltaC.x,
+              2.0*(zref.x*delta.y + zref.y*delta.x) + (2.0*delta.x*delta.y) + deltaC.y
+            );
+          }
+        }
       }
+      
       if(iter == u_iter){ gl_FragColor = vec4(0.0,0.0,0.0,1.0); return; }
+      
       float it = float(iter);
       // smooth iteration
-      float log_zn = log(xx+yy)/2.0;
-      float nu = log(log_zn / log(2.0))/log(2.0);
+      float nu = log(log(sqrt(mag2))) / log(2.0);
       it = it + 1.0 - nu;
       
       // Periodic wave coloring that scales with max iterations
@@ -628,26 +966,29 @@
     }
 
     void main(){
+      // Julia sets use standard iteration (no perturbation needed)
       // map gl coords (-1..1) to pixel coords
       vec2 uv = (v_pos * 0.5 + 0.5) * u_resolution;
       // Julia: z starts at pixel, c is constant
       float x = u_center.x + (uv.x - u_resolution.x * 0.5) * u_scale;
       float y = u_center.y + (uv.y - u_resolution.y * 0.5) * u_scale;
       float xx = x*x; float yy = y*y;
-      const int MAX_ITERS = 2000;
+      const int MAX_ITERS = 12000;
       int iter = u_iter;
+      float mag2 = xx + yy;
+      
       for(int i = 0; i < MAX_ITERS; i++){
         if(i >= u_iter) break;
         y = 2.0*x*y + u_juliaC.y;
         x = xx - yy + u_juliaC.x;
         xx = x*x; yy = y*y;
-        if(xx + yy > 4.0){ iter = i; break; }
+        mag2 = xx + yy;
+        if(mag2 > 4.0){ iter = i; break; }
       }
       if(iter == u_iter){ gl_FragColor = vec4(0.0,0.0,0.0,1.0); return; }
       float it = float(iter);
       // smooth iteration
-      float log_zn = log(xx+yy)/2.0;
-      float nu = log(log_zn / log(2.0))/log(2.0);
+      float nu = log(log(sqrt(mag2))) / log(2.0);
       it = it + 1.0 - nu;
       
       // Periodic wave coloring that scales with max iterations
@@ -689,12 +1030,29 @@
   function glRender(){
     if(!gl) return false;
     
+    // Determine if we should use deep zoom mode
+    const shouldUseDeepZoom = !isJuliaMode && view.scale < deepZoomThreshold;
+    
+    // Show warning when entering deep zoom mode for the first time
+    if(shouldUseDeepZoom && !useDeepZoom && !hasShownDeepZoomWarning){
+      console.log('🔬 DEEP ZOOM MODE ACTIVATED');
+      console.log('📍 Switching to perturbation method for zoom beyond 1e-7');
+      console.log('💡 TIP: Center on BLACK areas (deep inside the set) for best results');
+      console.log('⚠️  Colored areas will pixelate - recenter on black for smooth detail');
+      hasShownDeepZoomWarning = true;
+      // Show modal to user
+      showDeepZoomModal();
+    }
+    useDeepZoom = shouldUseDeepZoom;
+    
     // Choose program based on mode
     let program;
     if(isJuliaMode){
       program = glProgramJulia || (glProgramJulia = createGLProgramJulia());
-    } else {
+    } else if(useDeepZoom){
       program = glProgram || (glProgram = createGLProgram());
+    } else {
+      program = glProgramSimple || (glProgramSimple = createGLProgramSimple());
     }
     
     if(!program){
@@ -716,17 +1074,69 @@
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
 
+    // Compute and upload reference orbit for deep zoom mode only
+    let refLen = 0;
+    if(useDeepZoom){
+      const orbit = getRefOrbit(maxIter);
+      refLen = uploadRefOrbit(orbit);
+      
+      // Update orbit quality display
+      const quality = (refLen / maxIter * 100);
+      orbitQualityValue.textContent = quality.toFixed(0) + '%';
+      
+      // Color-code based on quality
+      orbitQualityValue.className = '';
+      if(quality >= 90){
+        orbitQualityValue.classList.add('quality-good');
+      } else if(quality >= 60){
+        orbitQualityValue.classList.add('quality-medium');
+      } else {
+        orbitQualityValue.classList.add('quality-poor');
+      }
+      
+      // Show orbit quality display
+      orbitQualityInfo.classList.remove('hidden');
+      
+      // Debug: log reference orbit details occasionally
+      if(Math.random() < 0.05){
+        console.log('Deep zoom - Scale:', view.scale.toExponential(2));
+        console.log('Reference orbit length:', refLen, '/', maxIter);
+        console.log('Orbit quality:', quality.toFixed(0) + '%');
+        if(refLen < maxIter * 0.75){
+          console.warn('⚠️ Reference orbit short - center may be near edge of set');
+          console.warn('💡 Tip: For deep zoom, center on points deep INSIDE the set (black areas)');
+        }
+      }
+    } else {
+      // Hide orbit quality display when not in deep zoom
+      orbitQualityInfo.classList.add('hidden');
+    }
+
     // Set shader uniforms
     const u_center = gl.getUniformLocation(program, 'u_center');
     const u_scale = gl.getUniformLocation(program, 'u_scale');
     const u_iter = gl.getUniformLocation(program, 'u_iter');
     const u_resolution = gl.getUniformLocation(program, 'u_resolution');
 
-    gl.uniform2f(u_center, view.cx, view.cy);
+    // Pass float approximation of center for compatibility
+    gl.uniform2f(u_center, parseFloat(centerRe.toString()), parseFloat(centerIm.toString()));
     gl.uniform1f(u_scale, view.scale);
     gl.uniform1i(u_iter, maxIter);
     gl.uniform2f(u_resolution, canvasGL.width, canvasGL.height);
 
+    // Deep zoom mode: pass reference orbit texture and delta
+    if(useDeepZoom){
+      const u_refOrbit = gl.getUniformLocation(program, 'u_refOrbit');
+      const u_refLen = gl.getUniformLocation(program, 'u_refLen');
+      const u_deltaC = gl.getUniformLocation(program, 'u_deltaC');
+      
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, refOrbitTexture);
+      gl.uniform1i(u_refOrbit, 0);
+      gl.uniform1i(u_refLen, refLen);
+      gl.uniform2f(u_deltaC, 0.0, 0.0); // Delta from reference center (currently zero)
+    }
+    
     // Julia mode needs the c parameter
     if(isJuliaMode){
       const u_juliaC = gl.getUniformLocation(program, 'u_juliaC');
@@ -773,14 +1183,21 @@
   // Normalize: positive deltaY means wheel down; make wheel down zoom out
   const delta = e.deltaY;
   const zoomFactor = Math.exp(delta * 0.0015);
+    const oldScale = view.scale;
     view.scale *= zoomFactor;
     // Clamp scale to prevent zooming out too far or in too deep
     view.scale = Math.max(minScale, Math.min(maxScale, view.scale));
+    const actualZoomFactor = view.scale / oldScale;
 
-    const after = pixelToComplex(mx, my);
-    // adjust center so the point under cursor stays fixed
-    view.cx += before.x - after.x;
-    view.cy += before.y - after.y;
+    // Calculate how much the point under cursor moves in complex space
+    const scaleChange = new Decimal(actualZoomFactor).sub(1);
+    const offsetRe = new Decimal((mx - canvasGL.width / 2) * oldScale);
+    const offsetIm = new Decimal((canvasGL.height / 2 - my) * oldScale);
+    
+    // Adjust center so point under cursor stays fixed (in Decimal precision)
+    centerRe = centerRe.sub(offsetRe.mul(scaleChange));
+    centerIm = centerIm.sub(offsetIm.mul(scaleChange));
+    syncCenterToView();
 
     updateMaxIter(); // Update iterations when zooming
     updateZoomDisplay(); // Update zoom level display
@@ -883,10 +1300,12 @@
       const dy_css = my_css - lastMouse.y;
       const dx = dx_css * devicePixelRatio;
       const dy = dy_css * devicePixelRatio;
-      // horizontal pan: move center opposite to pointer movement
-      view.cx -= dx * view.scale;
-      // vertical pan: update so dragging down moves the image down (natural feel)
-      view.cy += dy * view.scale;
+      // Pan using Decimal precision
+      const deltaRe = new Decimal(-dx * view.scale);
+      const deltaIm = new Decimal(dy * view.scale);
+      centerRe = centerRe.add(deltaRe);
+      centerIm = centerIm.add(deltaIm);
+      syncCenterToView();
       lastMouse = {x: mx_css, y: my_css};
       requestRender();
     }
@@ -1059,8 +1478,12 @@
         const actualRatioY = canvasGL.height / canvasGL.clientHeight;
         const dx = (tx - touchStart.x) * actualRatioX;
         const dy = (ty - touchStart.y) * actualRatioY;
-        view.cx -= dx * view.scale;
-        view.cy += dy * view.scale;
+        // Pan using Decimal precision
+        const deltaRe = new Decimal(-dx * view.scale);
+        const deltaIm = new Decimal(dy * view.scale);
+        centerRe = centerRe.add(deltaRe);
+        centerIm = centerIm.add(deltaIm);
+        syncCenterToView();
         touchStart = {x: tx, y: ty};
         requestRender();
       }
@@ -1073,22 +1496,22 @@
       
       // Calculate new scale
       const scaleFactor = distance / initialDistance;
+      const oldScale = view.scale;
       let newScale = initialScale / scaleFactor;
       // Clamp scale to prevent zooming out too far or in too deep
       newScale = Math.max(minScale, Math.min(maxScale, newScale));
-      
-      // Get complex coordinates at pinch center BEFORE scale change
-      const beforeComplex = pixelToComplex(touchStart.x, touchStart.y);
-      
-      // Update scale
       view.scale = newScale;
+      const actualZoomFactor = newScale / oldScale;
       
-      // Get complex coordinates at same pixel position AFTER scale change
-      const afterComplex = pixelToComplex(touchStart.x, touchStart.y);
+      // Calculate offset of pinch point from center in old scale
+      const scaleChange = new Decimal(actualZoomFactor).sub(1);
+      const offsetRe = new Decimal((touchStart.x - canvasGL.width / 2) * oldScale);
+      const offsetIm = new Decimal((canvasGL.height / 2 - touchStart.y) * oldScale);
       
-      // Adjust view center to compensate (keep pinch point fixed)
-      view.cx += beforeComplex.x - afterComplex.x;
-      view.cy += beforeComplex.y - afterComplex.y;
+      // Adjust center in Decimal precision
+      centerRe = centerRe.sub(offsetRe.mul(scaleChange));
+      centerIm = centerIm.sub(offsetIm.mul(scaleChange));
+      syncCenterToView();
       
       updateMaxIter(); // Update iterations when pinch zooming
       updateZoomDisplay(); // Update zoom level display
@@ -1235,7 +1658,21 @@
         if(isJuliaMode){
           switchToMandelbrot();
         }
-        animateView(loc.cx, loc.cy, loc.scale);
+        
+        // Use high-precision coordinates if available (for deep zoom locations)
+        if(loc.centerRe && loc.centerIm){
+          centerRe = new Decimal(loc.centerRe);
+          centerIm = new Decimal(loc.centerIm);
+          view.scale = loc.scale;
+          syncCenterToView();
+          updateMaxIter(); // Update iterations for this zoom level
+          updateZoomDisplay(); // Update zoom display
+          requestRender();
+        } else {
+          // Legacy location without high-precision coords
+          animateView(loc.cx, loc.cy, loc.scale);
+        }
+        
         // Reset dropdown after a short delay
         setTimeout(() => {
           this.value = '';
@@ -1274,37 +1711,38 @@
     const zoomSpeed = 0.98; // Zoom multiplier per frame (slower than discrete)
     let changed = false;
 
-    // Pan with arrow keys or WASD
+    // Pan with arrow keys or WASD (using Decimal precision)
     if(keysPressed.has('arrowup') || keysPressed.has('w')){
-      view.cy -= panSpeed;
+      centerIm = centerIm.sub(new Decimal(panSpeed));
       changed = true;
     }
     if(keysPressed.has('arrowdown') || keysPressed.has('s')){
-      view.cy += panSpeed;
+      centerIm = centerIm.add(new Decimal(panSpeed));
       changed = true;
     }
     if(keysPressed.has('arrowleft') || keysPressed.has('a')){
-      view.cx += panSpeed;
+      centerRe = centerRe.add(new Decimal(panSpeed));
       changed = true;
     }
     if(keysPressed.has('arrowright') || keysPressed.has('d')){
-      view.cx -= panSpeed;
+      centerRe = centerRe.sub(new Decimal(panSpeed));
       changed = true;
     }
 
-    // Zoom with +/-
+    // Zoom with +/- (center point stays fixed in Decimal precision)
     if(keysPressed.has('+') || keysPressed.has('=')){
       view.scale *= zoomSpeed;
-      view.scale = Math.max(minScale, view.scale); // Prevent zooming in too far
+      view.scale = Math.max(minScale, view.scale);
       changed = true;
     }
     if(keysPressed.has('-') || keysPressed.has('_')){
       view.scale /= zoomSpeed;
-      view.scale = Math.min(maxScale, view.scale); // Prevent zooming out too far
+      view.scale = Math.min(maxScale, view.scale);
       changed = true;
     }
 
     if(changed){
+      syncCenterToView();
       updateMaxIter();
       updateZoomDisplay();
       requestRender();
@@ -1395,6 +1833,8 @@
       view.cx = savedMandelbrotView.cx;
       view.cy = savedMandelbrotView.cy;
       view.scale = savedMandelbrotView.scale;
+      // Sync high-precision center
+      syncViewToCenter();
       updateZoomDisplay();
     } else {
       resetView();
@@ -1505,12 +1945,15 @@
     // Generate a unique key
     const key = 'loc_' + Date.now();
     
-    // Save location
+    // Save location with high-precision coordinates
     customLocations[key] = {
       name: name,
       cx: view.cx,
       cy: view.cy,
-      scale: view.scale
+      scale: view.scale,
+      // Store high-precision Decimal coordinates as strings for deep zoom
+      centerRe: centerRe.toString(),
+      centerIm: centerIm.toString()
     };
 
     saveCustomLocations(customLocations);

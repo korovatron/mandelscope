@@ -243,6 +243,9 @@
           <div>Zoom: <span id="zoom-level">1×</span></div>
           <div>Scale: <span id="scale-value">0</span></div>
         </div>
+        <div id="orbit-quality-info" class="hidden">
+          <div>Orbit Quality: <span id="orbit-quality-value">100%</span></div>
+        </div>
         <div id="julia-info" class="hidden">
           <div>Julia Set</div>
           <div>c = <span id="julia-c">0 + 0i</span></div>
@@ -301,11 +304,47 @@
             </div>
           </div>
         </div>
+
+        <!-- Deep Zoom Warning Modal -->
+        <div id="deep-zoom-modal" class="modal hidden">
+          <div class="modal-content deep-zoom-info">
+            <h3>🔬 Entering Deep Zoom Territory!</h3>
+            <p>You've crossed the <strong>10<sup>-7</sup> barrier</strong> where normal floating-point precision runs out of steam. Time to engage the <strong>perturbation method</strong>! 🚀</p>
+            
+            <h4>🎯 Your New Best Friend: Orbit Quality</h4>
+            <p>Watch the <strong>"Orbit Quality"</strong> indicator (bottom right). It's your compass for deep zoom success:</p>
+            <ul>
+              <li><strong>🟢 Green (90-100%):</strong> Excellent! Zoom away with confidence</li>
+              <li><strong>🟡 Amber (60-89%):</strong> Okay, but try panning slightly for better quality</li>
+              <li><strong>🔴 Red (&lt;60%):</strong> Poor location - pan before zooming deeper</li>
+            </ul>
+            
+            <h4>🗺️ Navigation Strategy</h4>
+            <ul>
+              <li><strong>Zoom anywhere!</strong> Don't worry about choosing the "perfect" spot upfront</li>
+              <li><strong>Got pixelation?</strong> Use <strong>arrow keys</strong> to pan slightly until detail returns</li>
+              <li><strong>Watch the indicator:</strong> Pan until orbit quality turns green - detail will snap back!</li>
+              <li><strong>Color doesn't matter!</strong> Both black areas AND colorful high-iteration regions work great</li>
+              <li><strong>Be patient:</strong> At extreme depths (10<sup>-15</sup>+), small movements make big differences</li>
+            </ul>
+            
+            <h4>🌌 What's Possible?</h4>
+            <p>With green orbit quality, you can reach zoom depths of <strong>10<sup>-24</sup></strong> or beyond - that's <strong>17 orders of magnitude</strong> deeper! You'll be viewing details smaller than atoms compared to your starting view. Mind = blown. 🤯</p>
+            
+            <p><em>Pro tip: Your center point determines everything. Watch that orbit quality and choose wisely!</em></p>
+            
+            <div class="modal-buttons">
+              <button id="deep-zoom-ok-btn" class="modal-btn">Got It - Let's Go Deep! 🚀</button>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
 
   </div>
 
+  <!-- Decimal.js for arbitrary precision (deep zoom) -->
+  <script src="https://cdn.jsdelivr.net/npm/decimal.js@10.4.3/decimal.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

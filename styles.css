@@ -202,6 +202,12 @@ main{position:relative;flex:1;display:flex}
 #zoom-info div{white-space:nowrap}
 #zoom-level{color:#8af;font-weight:bold}
 #scale-value{color:#f8a;font-weight:bold}
+#orbit-quality-info{position:absolute;bottom:max(12px, env(safe-area-inset-bottom));right:max(12px, env(safe-area-inset-right));background:rgba(0,0,0,0.85);padding:10px 14px;border-radius:6px;font-size:0.9rem;color:#eee;font-family:monospace;line-height:1.6;pointer-events:none;z-index:10;border:1px solid rgba(255,255,255,0.2)}
+#orbit-quality-info div{white-space:nowrap}
+#orbit-quality-value{font-weight:bold;transition:color 0.3s ease}
+#orbit-quality-value.quality-good{color:#4ade80}
+#orbit-quality-value.quality-medium{color:#fbbf24}
+#orbit-quality-value.quality-poor{color:#f87171}
 #julia-info{position:absolute;bottom:max(12px, env(safe-area-inset-bottom));left:max(12px, env(safe-area-inset-left));background:rgba(0,0,0,0.85);padding:10px 14px;border-radius:6px;font-size:0.9rem;color:#eee;font-family:monospace;line-height:1.6;pointer-events:auto;z-index:10;border:1px solid rgba(138,170,255,0.4)}
 #julia-info div{white-space:nowrap}
 #julia-info .hint-text{font-size:0.75rem;color:#aaa;margin-top:4px}
@@ -233,6 +239,12 @@ button:hover{background:rgba(102,126,234,0.35);border-color:rgba(102,126,234,0.6
 .modal-btn.cancel{background:rgba(255,255,255,0.1)}
 .modal-btn.cancel:hover{background:rgba(255,255,255,0.2)}
 .manage-modal{max-width:500px}
+.deep-zoom-info{max-width:600px;line-height:1.6}
+.deep-zoom-info h4{color:#7a93ee;font-size:1rem;margin:16px 0 8px 0}
+.deep-zoom-info ul{margin:8px 0;padding-left:24px;color:rgba(255,255,255,0.9)}
+.deep-zoom-info li{margin:6px 0}
+.deep-zoom-info p{color:rgba(255,255,255,0.85);margin:12px 0}
+.deep-zoom-info em{color:#7a93ee;font-style:italic}
 .location-item{display:flex;align-items:center;justify-content:space-between;padding:10px;background:rgba(255,255,255,0.05);border-radius:4px;margin-bottom:8px}
 .location-item:hover{background:rgba(255,255,255,0.08)}
 .location-name{color:#ffffff;font-size:0.95rem;flex:1}
