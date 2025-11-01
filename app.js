@@ -343,14 +343,15 @@
       const iter = Math.min(20000, Math.max(100, Math.floor(400 + zoomDepth * 400)));
       return iter;
     } else {
-      // Integrated/Mobile GPU: Conservative cap for smooth performance
-      // Cap at 4000 iterations to prevent sluggishness on iPhone/iPad
-      // At scale 1e-2: ~800 iterations
-      // At scale 1e-7: ~2400 iterations
-      // At scale 1e-10: ~3600 iterations
-      // At scale 1e-11+: ~4000 iterations (capped)
-      // Users can manually increase via slider if needed
-      const iter = Math.min(4000, Math.max(100, Math.floor(400 + zoomDepth * 400)));
+      // Integrated/Mobile GPU: Much more conservative scaling for smooth performance
+      // Mobile GPUs struggle with high iteration counts, especially for black (in-set) areas
+      // At scale 1e-2: ~170 iterations
+      // At scale 1e-4: ~290 iterations
+      // At scale 1e-7: ~470 iterations
+      // At scale 1e-10: ~650 iterations
+      // At scale 1e-15: ~950 iterations
+      // Cap at 1500 to maintain smooth panning/zooming on all mobile devices
+      const iter = Math.min(1500, Math.max(50, Math.floor(50 + zoomDepth * 60)));
       return iter;
     }
   }
@@ -1628,8 +1629,8 @@
 
   // Set slider max based on device type
   if(isMobileDevice){
-    iterSlider.max = 8000;
-    console.log('Mobile device: slider max set to 8000');
+    iterSlider.max = 4000;
+    console.log('Mobile device: slider max set to 4000');
   } else {
     iterSlider.max = 20000;
     console.log('Desktop device: slider max set to 20000');
@@ -1675,16 +1676,20 @@
     'mini-mandelbrot': { cx: -0.7453, cy: 0.1127, scale: 0.000008, name: 'Mini Mandelbrot' },
     'misiurewicz': { cx: -0.1011, cy: 0.9563, scale: 0.0003, name: 'Misiurewicz Point' },
     'scepter': { cx: -1.2569, cy: 0.3803, scale: 0.0003, name: 'Scepter Valley' },
-    'satellite': { cx: -0.1565, cy: 1.0325, scale: 0.0001, name: 'Satellite' },
-    'final-frontier': { 
+    'satellite': { cx: -0.1565, cy: 1.0325, scale: 0.0001, name: 'Satellite' }
+  };
+  
+  // Add The Final Frontier only on desktop (requires high iteration count)
+  if(!isMobileDevice){
+    presetLocations['final-frontier'] = { 
       cx: -0.6701643319867839, 
       cy: 0.31596038546507194, 
       scale: 1.3332685139720305e-38, 
       name: 'The Final Frontier (e-38)',
       centerRe: "-0.67016433198678397994845461647470317075281182378517295338727305111964",
       centerIm: "0.315960385465071955462877684565985094697084162998605619399575406798352"
-    }
-  };
+    };
+  }
 
   // Load custom locations from localStorage
   function loadCustomLocations(){
