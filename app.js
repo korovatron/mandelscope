@@ -1281,6 +1281,12 @@
 
   // Function to update coordinate display
   function updateCoordinateDisplay(mx, my){
+    // Disable coordinate display on mobile devices for performance
+    if(isMobileDevice){
+      coordInfo.classList.add('hidden');
+      return;
+    }
+    
     // Only show coordinates in Mandelbrot mode
     if(isJuliaMode){
       coordInfo.classList.add('hidden');
