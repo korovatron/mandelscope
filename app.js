@@ -50,18 +50,33 @@
   };
   
   function dismissTitleScreen(){
-    // Always start in Mandelbrot mode with reset view
+    // Always start in Mandelbrot mode
     if(isJuliaMode){
       isJuliaMode = false;
       juliaInfo.classList.add('hidden');
       backToMandelbrotBtn.classList.add('hidden');
     }
-    resetView();
     
+    // Start from extremely zoomed out view (practically invisible)
+    view.cx = -0.75;
+    view.cy = 0;
+    view.scale = Math.min(maxScale, Math.max(50.0 / canvasGL.width, 50.0 / canvasGL.height));
+    syncViewToCenter();
+    updateMaxIter();
+    updateZoomDisplay();
+    requestRender();
+    
+    // Hide title screen
     titleScreen.classList.add('hidden');
     setTimeout(() => {
       titleScreen.style.display = 'none';
     }, 300);
+    
+    // Animate to normal starting position after a brief delay
+    setTimeout(() => {
+      const targetScale = Math.min(maxScale, Math.max(3.5 / canvasGL.width, 2.5 / canvasGL.height));
+      animateView(-0.75, 0, targetScale, 1500); // 1.5 second smooth zoom
+    }, 400);
   }
   
   // Controls overlay handlers
@@ -149,6 +164,7 @@
   const juliaCSpan = document.getElementById('julia-c');
   const contextMenu = document.getElementById('context-menu');
   const menuShowJulia = document.getElementById('menu-show-julia');
+  const menuShareLocation = document.getElementById('menu-share-location');
   const menuToggle = document.getElementById('menu-toggle');
   const settingsPanel = document.getElementById('settings-panel');
   const orbitQualityInfo = document.getElementById('orbit-quality-info');
@@ -574,9 +590,12 @@
       // store baseScale for human-friendly magnification display
       resize.baseScale = view.scale;
       resize._initialized = true;
+      // Only reset view on first initialization
+      resetView();
+    } else {
+      // On subsequent resizes, just re-render at current position
+      requestRender();
     }
-
-    resetView();
   }
 
   // Redraw on resize and other environment changes
@@ -2039,6 +2058,48 @@
     hideContextMenu();
     if(!isJuliaMode){
       switchToJulia(contextMenuPos.cx, contextMenuPos.cy);
+    }
+  });
+
+  // Share Location functionality
+  menuShareLocation.addEventListener('click', async function(){
+    hideContextMenu();
+    
+    // Calculate zoom level from scale
+    const zoomDepth = Math.max(0, -Math.log10(view.scale / resize.baseScale));
+    const zoomLevel = Math.pow(10, zoomDepth);
+    
+    // Build share text with full precision coordinates
+    let shareText = '';
+    if(isJuliaMode){
+      shareText = `Julia Set Location\n\n`;
+      shareText += `c = ${juliaC.x.toFixed(15)} ${juliaC.y >= 0 ? '+' : ''}${juliaC.y.toFixed(15)}i\n`;
+      shareText += `Center: ${view.cx.toFixed(15)} ${view.cy >= 0 ? '+' : ''}${view.cy.toFixed(15)}i\n`;
+      shareText += `Scale: ${view.scale.toExponential(6)}\n`;
+      shareText += `Zoom: ${zoomLevel.toExponential(2)}×`;
+    } else {
+      // Use Decimal.js for high-precision Mandelbrot coordinates
+      const reStr = centerRe.toString();
+      const imStr = centerIm.toString();
+      shareText = `Mandelbrot Set Location\n\n`;
+      shareText += `Center: ${reStr} ${imStr.startsWith('-') ? '' : '+'}${imStr}i\n`;
+      shareText += `Scale: ${view.scale.toExponential(6)}\n`;
+      shareText += `Zoom: ${zoomLevel.toExponential(2)}×\n`;
+      shareText += `Iterations: ${maxIter}`;
+    }
+    
+    // Copy to clipboard
+    try {
+      await navigator.clipboard.writeText(shareText);
+      // Show success feedback
+      const feedback = document.createElement('div');
+      feedback.textContent = '✓ Location copied to clipboard!';
+      feedback.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(102,126,234,0.95);color:white;padding:16px 24px;border-radius:8px;font-size:1rem;font-weight:600;z-index:10001;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+      document.body.appendChild(feedback);
+      setTimeout(() => feedback.remove(), 2000);
+    } catch(err) {
+      console.error('Failed to copy to clipboard:', err);
+      alert('Failed to copy to clipboard. Please try again.');
     }
   });
 
