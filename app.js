@@ -27,6 +27,9 @@
   const mathOverlay = document.getElementById('math-overlay');
   const closeMathBtn = document.getElementById('close-math-btn');
   const showMathBtn = document.getElementById('show-math-btn');
+  const implementationOverlay = document.getElementById('implementation-overlay');
+  const closeImplementationBtn = document.getElementById('close-implementation-btn');
+  const showImplementationBtn = document.getElementById('show-implementation-btn');
   
   // Load and draw title image with high-quality smoothing
   const titleImage = new Image();
@@ -96,6 +99,25 @@
   mathOverlay.addEventListener('click', function(e){
     if(e.target === mathOverlay){
       mathOverlay.classList.add('hidden');
+    }
+  });
+  
+  // Implementation overlay handlers
+  showImplementationBtn.addEventListener('click', function(){
+    implementationOverlay.classList.remove('hidden');
+    // Close settings panel
+    settingsPanel.classList.add('hidden');
+    menuToggle.classList.remove('active');
+  });
+  
+  closeImplementationBtn.addEventListener('click', function(){
+    implementationOverlay.classList.add('hidden');
+  });
+  
+  // Click overlay background to close
+  implementationOverlay.addEventListener('click', function(e){
+    if(e.target === implementationOverlay){
+      implementationOverlay.classList.add('hidden');
     }
   });
   
