@@ -338,13 +338,9 @@
       const iter = Math.min(20000, Math.max(100, Math.floor(400 + zoomDepth * 400)));
       return iter;
     } else {
-      // Integrated/Software GPU: More conservative scaling
-      // At scale 1e-2: ~170 iterations
-      // At scale 1e-7: ~490 iterations
-      // At scale 1e-10: ~650 iterations
-      // At scale 1e-15: ~950 iterations
-      // At scale 1e-20: ~1250 iterations
-      const iter = Math.min(2000, Math.max(50, Math.floor(50 + zoomDepth * 60)));
+      // Integrated/Mobile GPU: Same formula as discrete GPU
+      // Modern mobile GPUs are capable enough for deep zoom
+      const iter = Math.min(20000, Math.max(100, Math.floor(400 + zoomDepth * 400)));
       return iter;
     }
   }
