@@ -204,6 +204,8 @@ main{position:relative;flex:1;display:flex}
 #scale-value{color:#f8a;font-weight:bold}
 #orbit-quality-info{position:absolute;bottom:max(12px, env(safe-area-inset-bottom));right:max(12px, env(safe-area-inset-right));background:rgba(0,0,0,0.85);padding:10px 14px;border-radius:6px;font-size:0.9rem;color:#eee;font-family:monospace;line-height:1.6;pointer-events:none;z-index:10;border:1px solid rgba(255,255,255,0.2)}
 #orbit-quality-info div{white-space:nowrap}
+#optimization-status{position:absolute;bottom:max(56px, calc(env(safe-area-inset-bottom) + 44px));right:max(12px, env(safe-area-inset-right));background:rgba(0,0,0,0.9);padding:10px 14px;border-radius:6px;font-size:0.9rem;color:#ffa500;font-family:monospace;line-height:1.6;pointer-events:none;z-index:11;border:1px solid rgba(255,165,0,0.4);animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.7}}
 #orbit-quality-value{font-weight:bold;transition:color 0.3s ease}
 #orbit-quality-value.quality-good{color:#4ade80}
 #orbit-quality-value.quality-medium{color:#fbbf24}

@@ -169,6 +169,7 @@
   const settingsPanel = document.getElementById('settings-panel');
   const orbitQualityInfo = document.getElementById('orbit-quality-info');
   const orbitQualityValue = document.getElementById('orbit-quality-value');
+  const optimizationStatus = document.getElementById('optimization-status');
   const coordInfo = document.getElementById('coord-info');
   const coordValue = document.getElementById('coord-value');
 
@@ -256,6 +257,8 @@
   let cachedCenterRe = centerRe;
   let cachedCenterIm = centerIm;
   let cachedScale = view.scale;
+  let lastOrbitQuality = null; // Track orbit quality for automatic iteration adjustment
+  let isOptimizingIterations = false; // Prevent recursive optimization
   
   // Reference orbit texture for GPU
   let refOrbitTexture = null;
@@ -274,10 +277,28 @@
     return orbit;
   }
   
+  // Get WebGL maximum texture size (cached)
+  let maxTextureSize = null;
+  function getMaxTextureSize(){
+    if(maxTextureSize === null && gl){
+      maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+      console.log(`📏 WebGL MAX_TEXTURE_SIZE: ${maxTextureSize}`);
+    }
+    return maxTextureSize || 16384;
+  }
+
   // Upload reference orbit to GPU texture
   function uploadRefOrbit(orbit){
     if(!gl) return 0;
-    const len = orbit.length;
+    
+    // Use actual WebGL texture size limit
+    const MAX_TEXTURE_SIZE = getMaxTextureSize();
+    const len = Math.min(orbit.length, MAX_TEXTURE_SIZE);
+    
+    if(orbit.length > MAX_TEXTURE_SIZE){
+      console.warn(`⚠️ Reference orbit truncated: ${orbit.length} → ${MAX_TEXTURE_SIZE} (WebGL texture size limit)`);
+    }
+    
     const data = new Float32Array(len * 4);
     for(let i = 0; i < len; i++){
       data[4*i] = parseFloat(orbit[i][0].toString());
@@ -341,10 +362,190 @@
     return cachedOrbit;
   }
 
+  // Optimize maxIter to achieve best orbit quality (100% if possible)
+  function optimizeIterations(){
+    if(isOptimizingIterations || !useDeepZoom) return;
+    
+    isOptimizingIterations = true;
+    const optimizationStartTime = Date.now();
+    
+    // Show optimization status indicator
+    if(optimizationStatus){
+      optimizationStatus.classList.remove('hidden');
+    }
+    
+    console.log('🔍 Optimizing iterations for best orbit quality...');
+    
+    // Run optimization asynchronously to avoid blocking interaction
+    setTimeout(() => {
+      const currentIter = maxIter;
+      let bestIter = currentIter;
+      let bestQuality = 0;
+    
+    // Phase 1: Coarse search over wide range
+    // Allow searching down to 50 iterations minimum (for deep-in-set locations)
+    // Cap at WebGL texture size limit
+    const MAX_ITER_LIMIT = getMaxTextureSize();
+    const minIter = Math.max(50, Math.floor(currentIter * 0.2));
+    const maxIterSearch = Math.min(MAX_ITER_LIMIT, Math.floor(currentIter * 3));
+    const coarseStep = Math.max(50, Math.floor((maxIterSearch - minIter) / 40));
+    
+    console.log(`Phase 1: Coarse search ${minIter} to ${maxIterSearch} (step ${coarseStep})`);
+    
+    for(let testIter = minIter; testIter <= maxIterSearch; testIter += coarseStep){
+      const orbit = computeRefOrbit(testIter);
+      const quality = orbit.length / testIter;
+      
+      // We want quality close to 100% but NOT over 100% (which means orbit never escaped)
+      // Prioritize values that escape (quality < 1.0) over those that don't
+      if(quality <= 1.0 && quality > bestQuality){
+        bestQuality = quality;
+        bestIter = testIter;
+      } else if(bestQuality === 0 && quality > 1.0){
+        // Only accept >100% if we haven't found anything that escapes yet
+        bestQuality = quality;
+        bestIter = testIter;
+      }
+    }
+    
+    console.log(`Phase 1 result: ${bestIter} iterations (${(bestQuality*100).toFixed(1)}% quality)`);
+    
+    // Phase 2: Fine search around the best value found
+    // Search both below (to find highest escaping value) and above (in case we're too low)
+    if(bestQuality < 0.999){
+      const fineMin = Math.max(50, bestIter - coarseStep);
+      const fineMax = Math.min(MAX_ITER_LIMIT, bestIter + coarseStep);
+      const fineStep = Math.max(5, Math.floor(coarseStep / 10));
+      
+      console.log(`Phase 2: Fine search ${fineMin} to ${fineMax} (step ${fineStep})`);
+      
+      for(let testIter = fineMin; testIter <= fineMax; testIter += fineStep){
+        const orbit = computeRefOrbit(testIter);
+        const quality = orbit.length / testIter;
+        
+        // Only accept if quality is ≤100% (orbit escapes)
+        if(quality <= 1.0 && quality > bestQuality){
+          bestQuality = quality;
+          bestIter = testIter;
+        }
+        
+        // If we found very close to 100% quality (but not over), stop searching
+        if(quality >= 0.98 && quality < 0.999) break;
+      }
+    }
+    
+    // Phase 3: Ultra-fine search if we're close but not optimal (95-99%)
+    if(bestQuality >= 0.95 && bestQuality < 0.99){
+      const ultraFineMin = Math.max(50, bestIter - 50);
+      const ultraFineMax = Math.min(MAX_ITER_LIMIT, bestIter + 50);
+      
+      console.log(`Phase 3: Ultra-fine search ${ultraFineMin} to ${ultraFineMax} (step 5)`);
+      
+      for(let testIter = ultraFineMin; testIter <= ultraFineMax; testIter += 5){
+        const orbit = computeRefOrbit(testIter);
+        const quality = orbit.length / testIter;
+        
+        // Only accept if quality is ≤100% and better than current
+        if(quality <= 1.0 && quality > bestQuality){
+          bestQuality = quality;
+          bestIter = testIter;
+        }
+        
+        // Stop if we hit the sweet spot (98-99.5%)
+        if(quality >= 0.98 && quality < 0.995) break;
+      }
+    }
+    
+    // If we ended up with >100% quality (orbit never escapes), back off
+    if(bestQuality > 1.0){
+      console.log(`⚠️ Orbit doesn't escape at ${bestIter} iterations, searching lower...`);
+      // Search downward from bestIter to find where it does escape
+      for(let testIter = bestIter - 10; testIter >= 50; testIter -= 10){
+        const orbit = computeRefOrbit(testIter);
+        const quality = orbit.length / testIter;
+        if(quality <= 1.0){
+          bestQuality = quality;
+          bestIter = testIter;
+          break;
+        }
+      }
+    }
+    
+    // Safety check: if orbit never escapes (100% quality), we need MORE iterations not less
+    // Search upward to find a point just below 100% for maximum detail
+    if(bestQuality >= 0.999){
+      console.log(`⚠️ Orbit completes without escaping at ${bestIter} iterations, searching higher...`);
+      let foundBetter = false;
+      
+      // Search upward from current best in larger steps
+      for(let testIter = bestIter * 2; testIter <= MAX_ITER_LIMIT; testIter += Math.max(100, Math.floor(bestIter * 0.5))){
+        const orbit = computeRefOrbit(testIter);
+        const quality = orbit.length / testIter;
+        
+        // Look for 92-99% quality (maximum detail without going over 100%)
+        if(quality >= 0.92 && quality < 0.995){
+          bestQuality = quality;
+          bestIter = testIter;
+          foundBetter = true;
+          console.log(`✓ Found better value: ${testIter} iterations (${(quality*100).toFixed(1)}% quality)`);
+          break;
+        }
+      }
+      
+      // If we couldn't find anything better, at least double the iterations
+      if(!foundBetter && bestIter < MAX_ITER_LIMIT / 2){
+        bestIter = Math.min(MAX_ITER_LIMIT, bestIter * 4);
+        const orbit = computeRefOrbit(bestIter);
+        bestQuality = orbit.length / bestIter;
+        console.log(`⬆️ Increasing iterations: → ${bestIter} (${(bestQuality*100).toFixed(1)}% quality)`);
+      }
+    }
+    
+      console.log(`✅ Optimization complete: ${currentIter} → ${bestIter} iterations (${(bestQuality*100).toFixed(1)}% quality)`);
+      
+      // Ensure indicator is visible for at least 500ms so users see it
+      const optimizationDuration = Date.now() - optimizationStartTime;
+      const minDisplayTime = 500; // milliseconds
+      const remainingTime = Math.max(0, minDisplayTime - optimizationDuration);
+      
+      setTimeout(() => {
+        // Hide optimization status indicator
+        if(optimizationStatus){
+          optimizationStatus.classList.add('hidden');
+        }
+        
+        isOptimizingIterations = false;
+      }, remainingTime);
+      
+      // Update the slider and maxIter if we found a better value
+      if(bestIter !== currentIter && bestQuality > lastOrbitQuality * 0.95){
+        maxIter = bestIter;
+        iterSlider.value = bestIter;
+        iterVal.textContent = bestIter;
+        
+        // Clear cache so next render uses the optimized value
+        cachedOrbit = null;
+        
+        // Trigger a re-render (which will update orbit quality display)
+        requestRender();
+      } else {
+        console.log('✨ Optimization converged at optimal value');
+      }
+    }, 0); // Run asynchronously
+  }
+
   // Helper to sync high-precision center with view center (for display only)
   function syncCenterToView(){
-    view.cx = parseFloat(centerRe.toString());
-    view.cy = parseFloat(centerIm.toString());
+    // At deep zoom, parseFloat loses precision and can produce NaN
+    // Keep the Decimal values, don't sync to view.cx/cy
+    if(view.scale < 1e-7){
+      // Just ensure view.cx/cy have some valid number (not used for rendering at deep zoom)
+      view.cx = view.cx || 0;
+      view.cy = view.cy || 0;
+    } else {
+      view.cx = parseFloat(centerRe.toString());
+      view.cy = parseFloat(centerIm.toString());
+    }
   }
 
   // Helper to sync view center to high-precision center (ONLY use for initial setup)
@@ -1145,12 +1346,16 @@
 
     // Compute and upload reference orbit for deep zoom mode only
     let refLen = 0;
+    let refOrbitLength = 0; // Store actual orbit length for iteration adjustment
     if(useDeepZoom){
       const orbit = getRefOrbit(maxIter);
       refLen = uploadRefOrbit(orbit);
+      refOrbitLength = refLen; // Save for iteration adjustment
       
       // Update orbit quality display
       const quality = (refLen / maxIter * 100);
+      lastOrbitQuality = quality / 100; // Store as 0-1 range for iteration adjustment
+      console.log(`📊 Orbit quality: ${quality.toFixed(1)}% (${lastOrbitQuality.toFixed(3)}), refLen: ${refLen}, maxIter: ${maxIter}`);
       orbitQualityValue.textContent = quality.toFixed(0) + '%';
       
       // Color-code based on quality
@@ -1161,6 +1366,27 @@
         orbitQualityValue.classList.add('quality-medium');
       } else {
         orbitQualityValue.classList.add('quality-poor');
+      }
+      
+      // Auto-optimize iterations if quality is poor and auto-iter is enabled
+      // Don't optimize during animations or when quality is already good
+      if(isAutoIter && quality < 95 && !isOptimizingIterations && !animating){
+        // Show indicator immediately
+        if(optimizationStatus){
+          optimizationStatus.classList.remove('hidden');
+        }
+        
+        // Delay optimization slightly to avoid doing it on every pan
+        setTimeout(() => {
+          if(isAutoIter && lastOrbitQuality < 0.95 && !animating){
+            optimizeIterations();
+          } else {
+            // If conditions changed, hide the indicator
+            if(optimizationStatus){
+              optimizationStatus.classList.add('hidden');
+            }
+          }
+        }, 1000); // Longer delay to let things settle
       }
       
       // Show orbit quality display
@@ -1179,6 +1405,7 @@
     } else {
       // Hide orbit quality display when not in deep zoom
       orbitQualityInfo.classList.add('hidden');
+      lastOrbitQuality = null; // Clear quality when not in deep zoom
     }
 
     // Set shader uniforms
@@ -1190,6 +1417,8 @@
     // Pass float approximation of center for compatibility
     gl.uniform2f(u_center, parseFloat(centerRe.toString()), parseFloat(centerIm.toString()));
     gl.uniform1f(u_scale, view.scale);
+    
+    // Use maxIter directly - the optimizer will handle finding the best value
     gl.uniform1i(u_iter, maxIter);
     gl.uniform2f(u_resolution, canvasGL.width, canvasGL.height);
 
@@ -1723,7 +1952,15 @@
     'mini-mandelbrot': { cx: -0.7453, cy: 0.1127, scale: 0.000008, name: 'Mini Mandelbrot' },
     'misiurewicz': { cx: -0.1011, cy: 0.9563, scale: 0.0003, name: 'Misiurewicz Point' },
     'scepter': { cx: -1.2569, cy: 0.3803, scale: 0.0003, name: 'Scepter Valley' },
-    'satellite': { cx: -0.1565, cy: 1.0325, scale: 0.0001, name: 'Satellite' }
+    'satellite': { cx: -0.1565, cy: 1.0325, scale: 0.0001, name: 'Satellite' },
+    'test-quality': {
+      cx: -1.1957360754494566,
+      cy: 0.31150507791402227,
+      scale: 3.880779e-9,
+      name: 'Test Quality (e-9)',
+      centerRe: "-1.1957360754494566",
+      centerIm: "0.31150507791402227"
+    }
   };
   
   // Add The Final Frontier only on desktop (requires high iteration count)
@@ -1813,9 +2050,9 @@
           centerRe = new Decimal(loc.centerRe);
           centerIm = new Decimal(loc.centerIm);
           view.scale = loc.scale;
-          syncCenterToView();
-          updateMaxIter(); // Update iterations for this zoom level
-          updateZoomDisplay(); // Update zoom display
+          syncCenterToView(); // Sync the Decimal values to view (or keep as fallback)
+          updateMaxIter();
+          updateZoomDisplay();
           requestRender();
         } else {
           // Legacy location without high-precision coords
