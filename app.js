@@ -338,9 +338,14 @@
       const iter = Math.min(20000, Math.max(100, Math.floor(400 + zoomDepth * 400)));
       return iter;
     } else {
-      // Integrated/Mobile GPU: Same formula as discrete GPU
-      // Modern mobile GPUs are capable enough for deep zoom
-      const iter = Math.min(20000, Math.max(100, Math.floor(400 + zoomDepth * 400)));
+      // Integrated/Mobile GPU: More conservative cap to prevent crashes
+      // Use same formula but cap at 8000 for stability on mobile devices
+      // At scale 1e-2: ~800 iterations
+      // At scale 1e-7: ~2400 iterations
+      // At scale 1e-15: ~5600 iterations
+      // At scale 1e-20: ~8000 iterations (capped)
+      // At scale 1e-38: would be ~15600 but capped at 8000
+      const iter = Math.min(8000, Math.max(100, Math.floor(400 + zoomDepth * 400)));
       return iter;
     }
   }
