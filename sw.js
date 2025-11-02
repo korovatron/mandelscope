@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mandelscope-v67';
+const CACHE_NAME = 'mandelscope-v68';
 const urlsToCache = [
   './',
   './index.html',
@@ -8,7 +8,8 @@ const urlsToCache = [
   './titleImage.png',
   './iconSolid.png',
   './iconTrans.png',
-  './screenshot.png'
+  './screenshot.png',
+  'https://cdn.jsdelivr.net/npm/decimal.js@10.4.3/decimal.min.js'
 ];
 
 // Install event - cache files
