@@ -1,6 +1,6 @@
 Mandelscope — Interactive Mandelbrot & Julia Set Explorer
 
-An advanced fractal visualiser featuring WebGL rendering, deep zoom capabilities using perturbation theory, and automatic iteration optimisation.
+A fractal visualiser featuring WebGL rendering, deep zoom capabilities using perturbation theory, and automatic iteration optimisation.
 
 ## Features
 
