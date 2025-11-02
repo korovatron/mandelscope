@@ -388,47 +388,28 @@
         <div id="deep-zoom-modal" class="modal hidden">
           <div class="modal-content deep-zoom-info">
             <h3>Entering Deep Zoom Territory!</h3>
-            <p>You've crossed the <strong>10<sup>-7</sup> barrier</strong> where normal floating-point precision runs out of steam. Time to engage the <strong>perturbation method</strong>! 🚀</p>
+            <p>You've crossed the <strong>10<sup>-7</sup> barrier</strong> where normal floating-point precision runs out of steam. The app now uses <strong>perturbation theory</strong> to reach extreme depths! 🚀</p>
+            
+            <h4>🎯 Best Navigation Strategy</h4>
+            <p><strong>For the most stunning images with minimal artifacts:</strong></p>
+            <ul>
+              <li><strong>Zoom on BLACK areas that are close to colourful regions</strong></li>
+              <li>Black = inside the set = stable orbits = best quality (95-100%)</li>
+              <li>Position near colour = fractal detail nearby = visual interest</li>
+              <li>This gives you both stability <em>and</em> beauty! ✨</li>
+              <li><strong>Pro tip:</strong> Use double-click/double-tap to zoom instead of mouse wheel/pinch - makes it easier to zoom precisely on a black spot near colour</li>
+            </ul>
             
             <h4>⚙️ Automatic Optimisation</h4>
-            <p>The app now <strong>automatically optimises</strong> the iteration count for best image quality! Watch for the orange <strong>"⚙️ Optimising..."</strong> indicator (bottom right) after panning or zooming.</p>
+            <p>The app automatically finds the best iteration count for image quality. Watch for the orange <strong>"⚙️ Optimising..."</strong> indicator (bottom right).</p>
             <ul>
-              <li><strong>Usually:</strong> Wait a moment - the optimiser will find the sweet spot for you!</li>
-              <li><strong>If the image looks pixelated or goes black:</strong> The optimiser may have gone too far or not far enough</li>
-              <li><strong>Manual override:</strong> Use the <strong>Max Iterations slider</strong> to fine-tune the image yourself</li>
-              <li><strong>Pro tip:</strong> Sometimes small slider adjustments reveal hidden detail that optimisation missed!</li>
-            </ul>
-            
-            <h4>Orbit Quality Indicator</h4>
-            <p>The <strong>"Orbit Quality"</strong> percentage (bottom right) shows how well your current location works with the chosen iterations:</p>
-            <ul>
-              <li><strong>🟢 Green (90-100%):</strong> Excellent! Zoom away with confidence</li>
-              <li><strong>🟡 Amber (60-89%):</strong> Okay, but try panning slightly for better quality</li>
-              <li><strong>🔴 Red (&lt;60%):</strong> Poor location - pan before zooming deeper</li>
-            </ul>
-            
-            <h4>Navigation Strategy</h4>
-            <ul>
-              <li><strong>Let it optimise:</strong> After panning/zooming, wait for the optimiser to finish</li>
-              <li><strong>Got a blank screen?</strong> Try adjusting iterations with the slider (sometimes up, sometimes down!)</li>
-              <li><strong>Image too blocky?</strong> Manually decrease iterations slightly</li>
-              <li><strong>Best spots:</strong> Colourful areas near black regions tend to have better orbit quality</li>
-              <li><strong>Be patient:</strong> At extreme depths (10<sup>-15</sup>+), optimisation may take a few seconds</li>
+              <li><strong>Usually:</strong> Just wait - it'll find the sweet spot!</li>
+              <li><strong>If needed:</strong> Use the <strong>Max Iterations slider</strong> to fine-tune manually</li>
+              <li><strong>Orbit Quality</strong> shows how well it's working: 🟢 Green (90-100%) = Excellent</li>
             </ul>
             
             <h4>What's Possible?</h4>
-            <p>With good orbit quality, you can reach zoom depths of <strong>10<sup>-38</sup></strong> or beyond - that's <strong>31 orders of magnitude</strong> deeper! You'll be viewing details trillions of times smaller than atoms compared to your starting view. Mind = blown. 🤯</p>
-            
-            <h4>⚡ Performance Considerations</h4>
-            <p>Deep zoom requires serious computation! Performance depends on your device's GPU/CPU:</p>
-            <ul>
-              <li><strong>Desktop with discrete GPU:</strong> Full 10<sup>-38</sup> capability with smooth performance</li>
-              <li><strong>Mobile/Tablet:</strong> Optimized for smooth experience; extreme depths may show reduced detail</li>
-              <li><strong>Going deeper = slower:</strong> Each order of magnitude deeper requires more iterations</li>
-              <li><strong>Manual control:</strong> You can always override the optimiser with the Max Iterations slider</li>
-            </ul>
-            
-            <p><em>Pro tip: The automatic optimiser usually gets it right, but don't hesitate to manually adjust iterations if you see issues!</em></p>
+            <p>You can reach zoom depths of <strong>10<sup>-38</sup></strong> or beyond - viewing details <strong>trillions of times smaller than atoms</strong> compared to your starting view! 🤯</p>
             
             <div class="modal-buttons">
               <button id="deep-zoom-ok-btn" class="modal-btn">Got It - Let's Go Deep! 🚀</button>
