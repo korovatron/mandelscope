@@ -431,6 +431,7 @@
       let bestIter = currentIter;
       let bestQuality = 0;
       let bestStability = 0;
+      let minEscapeAt100Percent = Infinity;  // Track lowest escape point when quality = 100%
       let maxEscapeAt100Percent = 0;  // Track highest escape point when quality = 100%
     
     // Phase 0: Quick check - is the orbit escaping early?
@@ -466,6 +467,9 @@
     console.log(`Phase 1: Coarse search ${minIter} to ${maxIterSearch} (step ${coarseStep})`);
     console.log(`Current escape point: ${currentOrbit.length} iterations`);
     
+    // Store coarse search results for later analysis
+    const coarseResults = [];
+    
     for(let testIter = minIter; testIter <= maxIterSearch; testIter += coarseStep){
       const orbit = computeRefOrbit(testIter);
       let quality = orbit.length / testIter;
@@ -478,9 +482,18 @@
       // Log every test value for debugging
       console.log(`  Testing ${testIter}: escape=${orbit.length}, quality=${(quality*100).toFixed(1)}%, stability=${(stability*100).toFixed(0)}%`);
       
-      // Track maximum escape point when we see 100% quality
-      // (Multiple values can all have 100% quality, we want the highest escape point)
+      // Store result for later analysis
+      coarseResults.push({
+        iter: testIter,
+        escapePoint: orbit.length,
+        quality: quality,
+        stability: stability
+      });
+      
+      // Track minimum and maximum escape points when we see 100% quality
+      // (Multiple values can all have 100% quality - we want the range)
       if(quality >= 0.999){
+        minEscapeAt100Percent = Math.min(minEscapeAt100Percent, orbit.length);
         maxEscapeAt100Percent = Math.max(maxEscapeAt100Percent, orbit.length);
       }
       
@@ -524,12 +537,78 @@
     }
     
     // If we found multiple 100% quality values (common deep in set),
-    // prefer a value slightly above the maximum escape point to ensure detail is visible
-    // This prevents choosing low iterations (e.g., 143) when higher iterations (e.g., 478) give better detail
-    if(maxEscapeAt100Percent > 0 && maxEscapeAt100Percent > bestIter){
-      // Use value just slightly above max escape point (1-2% higher)
-      const preferredIter = Math.ceil(maxEscapeAt100Percent * 1.02);
-      console.log(`📍 Found 100% quality up to escape=${maxEscapeAt100Percent}, preferring ${preferredIter} iterations for detail (was ${bestIter})`);
+    // test which direction (lower vs upper bound) gives better actual rendering quality
+    if(maxEscapeAt100Percent > 0 && minEscapeAt100Percent < Infinity && maxEscapeAt100Percent > minEscapeAt100Percent){
+      const range = maxEscapeAt100Percent - minEscapeAt100Percent;
+      
+      // Test a point near the lower bound and upper bound to see which direction is better
+      const testLower = Math.round(minEscapeAt100Percent + range * 0.2);
+      const testUpper = Math.round(maxEscapeAt100Percent - range * 0.2);
+      
+      // Compute actual orbit quality at these test points (not just escape quality)
+      // We need to actually render and measure orbit quality
+      const orbitLower = computeRefOrbit(testLower);
+      const orbitUpper = computeRefOrbit(testUpper);
+      
+      // Calculate actual render quality by checking how many pixels would have valid orbits
+      // For now, use escape point as a proxy: closer to the test value = better quality
+      const qualityLower = orbitLower.length / testLower;
+      const qualityUpper = orbitUpper.length / testUpper;
+      
+      console.log(`🔍 Testing direction: lower=${testLower} (${(qualityLower*100).toFixed(1)}%) vs upper=${testUpper} (${(qualityUpper*100).toFixed(1)}%)`);
+      
+      let preferredIter;
+      // If both are still 100%, prefer the upper bound (more iterations = more detail visible)
+      // If one is lower quality, prefer the one that's closer to 100%
+      if(qualityLower >= 0.999 && qualityUpper >= 0.999){
+        // Both still 100% - but optimal value might be just beyond our tested range
+        // Check if there's a value just above maxEscapeAt100Percent that still gives 100%
+        // Look for the first test in coarse search that dropped below 100% quality
+        let firstDropIter = null;
+        let firstDropEscape = null;
+        
+        // Scan through coarse search results to find where quality first dropped
+        for(let i = 0; i < coarseResults.length; i++){
+          if(coarseResults[i].quality < 0.999){
+            firstDropIter = coarseResults[i].iter;
+            firstDropEscape = coarseResults[i].escapePoint;
+            break;
+          }
+        }
+        
+        // If we found a drop, and the escape point is close to the test iterations,
+        // that escape point might be the sweet spot (orbit escapes right at max iterations)
+        if(firstDropEscape && firstDropEscape > maxEscapeAt100Percent && 
+           firstDropEscape < firstDropIter && 
+           (firstDropEscape / firstDropIter) >= 0.95){
+          // The escape point from the first degraded test might be optimal
+          // Test it to confirm
+          const orbitAtEscape = computeRefOrbit(firstDropEscape);
+          const qualityAtEscape = orbitAtEscape.length / firstDropEscape;
+          
+          if(qualityAtEscape >= 0.999){
+            preferredIter = firstDropEscape;
+            console.log(`📍 Found sweet spot at escape point ${firstDropEscape} (just beyond 100% range, before quality drops at ${firstDropIter})`);
+          } else {
+            // Didn't work, use upper bound
+            preferredIter = maxEscapeAt100Percent;
+            console.log(`📍 Both directions show 100% quality, using upper bound ${preferredIter} for maximum detail`);
+          }
+        } else {
+          // No nearby drop point, use upper bound
+          preferredIter = maxEscapeAt100Percent;
+          console.log(`📍 Both directions show 100% quality, using upper bound ${preferredIter} for maximum detail`);
+        }
+      } else if(qualityLower < qualityUpper){
+        // Upper is better quality
+        preferredIter = maxEscapeAt100Percent;
+        console.log(`📍 Upper bound gives better quality, using ${preferredIter}`);
+      } else {
+        // Lower is better quality (or equal)
+        preferredIter = minEscapeAt100Percent;
+        console.log(`📍 Lower bound gives better quality, using ${preferredIter}`);
+      }
+      
       bestIter = preferredIter;
       bestQuality = 1.0;
       bestStability = 1.0; // Assume stable since we found 100% quality
@@ -541,7 +620,9 @@
     // If we found 100% quality in early escape mode AND the orbit escapes very early
     // compared to current iterations, we're viewing the set from deep inside
     // The orbit escaping at (say) 217 means we need ~300-600 iterations for detail, not 3000+
-    if(earlyEscapeMode && bestQuality >= 0.999 && currentOrbit.length < 500 && currentIter > 1000){
+    // BUT: Skip this if we already found a good 100% quality range (detected by having both min and max bounds)
+    const foundQualityRange = (maxEscapeAt100Percent > 0 && minEscapeAt100Percent < Infinity && maxEscapeAt100Percent > minEscapeAt100Percent);
+    if(earlyEscapeMode && bestQuality >= 0.999 && currentOrbit.length < 500 && currentIter > 1000 && !foundQualityRange){
       console.log(`⚠️  Deep-in-set view detected: orbit escapes at ${currentOrbit.length}, current iterations ${currentIter}`);
       console.log(`🔍 Searching for optimal detail range...`);
       
@@ -775,12 +856,12 @@
     // Safety check: if orbit never escapes AND quality is too low, we need MORE iterations
     // BUT: Only run this if we haven't already found a good value (92-99.5% range)
     // If Phase 1 found a value in the target range, trust it!
-    // ALSO: Don't run if we have 100% quality - that means the orbit IS escaping at the right point
     // ALSO: Don't run in early escape mode - we already searched the right range
+    // ALSO: Don't run if we found a quality range (directional test passed) - trust that result
     const alreadyFoundGoodValue = bestQuality >= 0.92 && bestQuality < 0.995;
-    const orbitIsEscaping = bestQuality >= 0.999; // 100% quality means orbit escapes at bestIter
+    const foundQualityRangeAgain = (maxEscapeAt100Percent > 0 && minEscapeAt100Percent < Infinity && maxEscapeAt100Percent > minEscapeAt100Percent);
     
-    if(!alreadyFoundGoodValue && orbitIsEscaping && !earlyEscapeMode){
+    if(!alreadyFoundGoodValue && !earlyEscapeMode && !foundQualityRangeAgain && bestQuality >= 0.999){
       // Check if orbit actually stayed bounded (didn't escape)
       const finalOrbit = computeRefOrbit(bestIter);
       const lastVal = finalOrbit[finalOrbit.length - 1];
