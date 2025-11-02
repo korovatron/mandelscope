@@ -1406,6 +1406,11 @@
       // Hide orbit quality display when not in deep zoom
       orbitQualityInfo.classList.add('hidden');
       lastOrbitQuality = null; // Clear quality when not in deep zoom
+      
+      // Also hide optimization status indicator when leaving deep zoom
+      if(optimizationStatus){
+        optimizationStatus.classList.add('hidden');
+      }
     }
 
     // Set shader uniforms
