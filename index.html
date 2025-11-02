@@ -112,11 +112,15 @@
           <label>Max iterations: <span id="iterVal">500</span></label>
           <input id="iter" type="range" min="50" max="20000" value="500">
         </div>
-        <div class="setting-group">
-          <button id="reset" class="reset-btn">Reset View</button>
+        <div class="setting-group" id="coord-display-setting">
+          <label style="display: block; margin-bottom: 8px; font-weight: bold;">Current Coordinates:</label>
+          <div id="coord-info-panel" style="font-family: monospace; font-size: 12px; line-height: 1.6; color: var(--text-secondary, #B0C4DE); background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px;">
+            <span id="coord-value-panel">Move mouse over canvas</span>
+          </div>
         </div>
-        <div class="setting-group">
-          <button id="return-to-title" class="reset-btn">Return to Title Screen</button>
+        <div class="setting-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <button id="reset" class="reset-btn">Reset View</button>
+          <button id="return-to-title" class="reset-btn">Return to Title</button>
         </div>
         <div class="setting-group" style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px; margin-top: 10px;">
           <label style="display: block; margin-bottom: 8px; font-weight: bold;">Mandelbrot Locations:</label>
@@ -141,14 +145,10 @@
           </select>
           <button id="manage-julia-btn" style="width: 100%; padding: 8px; background: rgba(255,255,255,0.1); color: var(--text-primary, #E8F4FD); border: 1px solid var(--border-color, #555); border-radius: 4px; font-size: 14px; cursor: pointer;">Manage Julia Sets...</button>
         </div>
-        <div class="setting-group" style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px; margin-top: 10px;">
-          <button id="show-math-btn" class="reset-btn">About the Maths</button>
-        </div>
-        <div class="setting-group">
-          <button id="show-implementation-btn" class="reset-btn">Deep Zoom Implementation</button>
-        </div>
-        <div class="setting-group">
-          <button id="show-controls-btn" class="reset-btn">Show Controls</button>
+        <div class="setting-group" style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px; margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
+          <button id="show-math-btn" class="reset-btn" style="font-size: 0.8rem; padding: 6px 4px;">Maths</button>
+          <button id="show-implementation-btn" class="reset-btn" style="font-size: 0.8rem; padding: 6px 4px;">Deep Zoom</button>
+          <button id="show-controls-btn" class="reset-btn" style="font-size: 0.8rem; padding: 6px 4px;">Controls</button>
         </div>
       </div>
     </div>
@@ -322,12 +322,10 @@
         <div id="optimization-status" class="hidden">
           <div>⚙️ Optimising iterations...</div>
         </div>
-        <div id="coord-info" class="hidden">
-          <span id="coord-value">0 + 0i</span>
+        <div id="julia-set-button-wrap" class="hidden">
+          <button id="show-julia-btn" class="julia-set-btn">🎨 Show Julia Set</button>
         </div>
         <div id="julia-info" class="hidden">
-          <div>Julia Set</div>
-          <div>c = <span id="julia-c">0 + 0i</span></div>
           <button id="back-to-mandelbrot" class="back-btn-inline">← Back to Mandelbrot</button>
         </div>
         

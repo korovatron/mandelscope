@@ -60,6 +60,9 @@
       backToMandelbrotBtn.classList.add('hidden');
     }
     
+    // Show Julia Set button in Mandelbrot mode
+    juliaSetButtonWrap.classList.remove('hidden');
+    
     // Start from extremely zoomed out view (practically invisible)
     view.cx = -0.75;
     view.cy = 0;
@@ -161,7 +164,6 @@
   const zoomLevelSpan = document.getElementById('zoom-level');
   const scaleValueSpan = document.getElementById('scale-value');
   const juliaInfo = document.getElementById('julia-info');
-  const juliaCSpan = document.getElementById('julia-c');
   const contextMenu = document.getElementById('context-menu');
   const menuShowJulia = document.getElementById('menu-show-julia');
   const menuShareLocation = document.getElementById('menu-share-location');
@@ -170,8 +172,10 @@
   const orbitQualityInfo = document.getElementById('orbit-quality-info');
   const orbitQualityValue = document.getElementById('orbit-quality-value');
   const optimizationStatus = document.getElementById('optimization-status');
-  const coordInfo = document.getElementById('coord-info');
-  const coordValue = document.getElementById('coord-value');
+  const coordDisplaySetting = document.getElementById('coord-display-setting');
+  const coordValuePanel = document.getElementById('coord-value-panel');
+  const juliaSetButtonWrap = document.getElementById('julia-set-button-wrap');
+  const showJuliaBtn = document.getElementById('show-julia-btn');
 
   // Deep Zoom Modal
   const deepZoomModal = document.getElementById('deep-zoom-modal');
@@ -2082,18 +2086,14 @@
     // Right click handled by contextmenu event
   });
 
-  // Function to update coordinate display
+  // Function to update coordinate display in settings panel
   function updateCoordinateDisplay(mx, my){
-    // Disable coordinate display on mobile devices for performance
-    if(isMobileDevice){
-      coordInfo.classList.add('hidden');
-      return;
-    }
-    
     // Only show coordinates in Mandelbrot mode
     if(isJuliaMode){
-      coordInfo.classList.add('hidden');
+      coordDisplaySetting.style.display = 'none';
       return;
+    } else {
+      coordDisplaySetting.style.display = 'block';
     }
     
     // Calculate complex plane coordinates using high-precision center
@@ -2115,9 +2115,8 @@
     const sign = imag.isNegative() ? '-' : '+';
     const imagAbs = imag.abs().toFixed(precision);
     
-    // Split into two lines for better mobile display
-    coordValue.innerHTML = `${realStr} ${sign}<br>${imagAbs}i`;
-    coordInfo.classList.remove('hidden');
+    // Display in settings panel (desktop and mobile)
+    coordValuePanel.innerHTML = `${realStr} ${sign}<br>${imagAbs}i`;
   }
 
   // Update coordinate display on mouse move over canvas
@@ -2130,9 +2129,17 @@
     updateCoordinateDisplay(mx, my);
   });
   
-  // Hide coordinate display when mouse leaves canvas
-  canvasGL.addEventListener('mouseleave', function(){
-    coordInfo.classList.add('hidden');
+  // Update coordinate display on touch move as well
+  canvasGL.addEventListener('touchmove', function(e){
+    if(e.touches.length === 1){
+      const rect = canvasGL.getBoundingClientRect();
+      const touch = e.touches[0];
+      const mx_css = (touch.clientX - rect.left);
+      const my_css = (touch.clientY - rect.top);
+      const mx = mx_css * devicePixelRatio;
+      const my = my_css * devicePixelRatio;
+      updateCoordinateDisplay(mx, my);
+    }
   });
 
   // Right-click context menu
@@ -2820,6 +2827,7 @@
     juliaC.y = cy;
     isJuliaMode = true;
     juliaInfo.classList.remove('hidden');
+    juliaSetButtonWrap.classList.add('hidden'); // Hide Julia button in Julia mode
     backToMandelbrotBtn.classList.remove('hidden');
     updateJuliaDisplay();
     
@@ -2842,6 +2850,7 @@
   function switchToMandelbrot(){
     isJuliaMode = false;
     juliaInfo.classList.add('hidden');
+    juliaSetButtonWrap.classList.remove('hidden'); // Show Julia button in Mandelbrot mode
     backToMandelbrotBtn.classList.add('hidden');
     
     // Restore saved Mandelbrot view if available
@@ -2860,10 +2869,7 @@
   }
 
   function updateJuliaDisplay(){
-    const real = juliaC.x.toFixed(4);
-    const imag = juliaC.y.toFixed(4);
-    const sign = juliaC.y >= 0 ? '+' : '';
-    juliaCSpan.textContent = `${real} ${sign} ${imag}i`;
+    // No longer displaying Julia c value in UI
   }
 
   // Back to Mandelbrot button
@@ -2928,6 +2934,16 @@
     hideContextMenu();
     if(!isJuliaMode){
       switchToJulia(contextMenuPos.cx, contextMenuPos.cy);
+    }
+  });
+
+  // Julia Set button (bottom left) - shows Julia set of current center
+  showJuliaBtn.addEventListener('click', function(){
+    if(!isJuliaMode){
+      // Use current center coordinates
+      const cx = parseFloat(centerRe.toString());
+      const cy = parseFloat(centerIm.toString());
+      switchToJulia(cx, cy);
     }
   });
 
