@@ -1720,14 +1720,45 @@
     const rect = canvasGL.getBoundingClientRect();
     const mx = (e.clientX - rect.left) * devicePixelRatio;
     const my = (e.clientY - rect.top) * devicePixelRatio;
-    const complex = pixelToComplex(mx, my);
+    
+    // Calculate target coordinates with high precision for deep zoom
+    let targetCx, targetCy;
+    if(useDeepZoom){
+      // Use Decimal.js for precision at deep zoom
+      const pixelOffsetX = new Decimal(mx - canvasGL.width / 2);
+      const pixelOffsetY = new Decimal(my - canvasGL.height / 2);
+      const scaleDecimal = new Decimal(view.scale);
+      
+      // Calculate delta in complex plane
+      const deltaRe = pixelOffsetX.times(scaleDecimal);
+      const deltaIm = pixelOffsetY.times(scaleDecimal).neg(); // Y is inverted
+      
+      // Calculate target center with Decimal precision
+      const targetReDecimal = centerRe.add(deltaRe);
+      const targetImDecimal = centerIm.add(deltaIm);
+      
+      // Update high-precision center immediately
+      centerRe = targetReDecimal;
+      centerIm = targetImDecimal;
+      syncCenterToView();
+      
+      // Use the synced float values for animation
+      targetCx = view.cx;
+      targetCy = view.cy;
+    } else {
+      // Standard precision for normal zoom levels
+      const complex = pixelToComplex(mx, my);
+      targetCx = complex.x;
+      targetCy = complex.y;
+    }
+    
     let newScale = view.scale * 0.5;
     // Clamp to zoom limits
     newScale = Math.max(getMinScale(), Math.min(maxScale, newScale));
     // Only animate if scale actually changes (prevents pan-only when at zoom limit)
     // Use relative threshold for deep zooms
     if(Math.abs(newScale - view.scale) > view.scale * 0.001){
-      animateView(complex.x, complex.y, newScale);
+      animateView(targetCx, targetCy, newScale);
     }
   });
 
