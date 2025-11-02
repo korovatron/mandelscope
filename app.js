@@ -259,6 +259,8 @@
   let cachedScale = view.scale;
   let lastOrbitQuality = null; // Track orbit quality for automatic iteration adjustment
   let isOptimizingIterations = false; // Prevent recursive optimization
+  let optimizedIterValue = null; // Store optimizer's result to preserve during zoom
+  let justLoadedSavedLocation = false; // Flag to prevent auto-optimization right after loading saved location
   
   // Reference orbit texture for GPU
   let refOrbitTexture = null;
@@ -443,8 +445,8 @@
     
     // Phase 1: Coarse search over wide range
     // Allow searching down to 50 iterations minimum (for deep-in-set locations)
-    // Cap at WebGL texture size limit
-    const MAX_ITER_LIMIT = getMaxTextureSize();
+    // Use slider max as limit (allows going beyond texture size for extreme zoom)
+    const MAX_ITER_LIMIT = parseInt(iterSlider.max);
     
     // Smart search range: if orbit escapes early (quality < 50%), focus search BELOW current value
     let minIter, maxIterSearch;
@@ -615,6 +617,51 @@
     }
     
     console.log(`Phase 1 result: ${bestIter} iterations (${(bestQuality*100).toFixed(1)}% quality, ${(bestStability*100).toFixed(0)}% stability)`);
+    
+    // SPECIAL CASE: Still 100% quality at upper bound - need to search higher
+    // This happens when we're deep inside the set and need many more iterations
+    if(bestQuality >= 0.999 && bestIter >= maxIterSearch * 0.95){
+      console.log(`⚠️  Still 100% quality at upper search bound (${bestIter}) - extending search...`);
+      
+      // Extend search up to 10x current value or MAX_ITER_LIMIT
+      const extendedMax = Math.min(MAX_ITER_LIMIT, bestIter * 10);
+      const extendedStep = Math.max(50, Math.floor((extendedMax - bestIter) / 40));
+      
+      console.log(`Phase 1b: Extended search ${bestIter} to ${extendedMax} (step ${extendedStep})`);
+      
+      let foundEscape = false;
+      for(let testIter = bestIter + extendedStep; testIter <= extendedMax; testIter += extendedStep){
+        const orbit = computeRefOrbit(testIter);
+        const quality = orbit.length / testIter;
+        
+        console.log(`  Testing ${testIter}: escape=${orbit.length}, quality=${(quality*100).toFixed(1)}%`);
+        
+        // Stop when we find quality dropping below 100% (orbit starting to escape)
+        if(quality < 0.999){
+          // Found the transition point - use this value
+          bestIter = testIter;
+          bestQuality = quality;
+          bestStability = checkOrbitStability(orbit, false);
+          foundEscape = true;
+          console.log(`✓ Found escape point at ${testIter} iterations (${(quality*100).toFixed(1)}% quality)`);
+          break;
+        } else if(quality >= 0.92 && quality <= 0.995){
+          // Found sweet spot
+          bestIter = testIter;
+          bestQuality = quality;
+          bestStability = checkOrbitStability(orbit, false);
+          foundEscape = true;
+          console.log(`✓ Found sweet spot at ${testIter} iterations (${(quality*100).toFixed(1)}% quality)`);
+          break;
+        }
+      }
+      
+      if(!foundEscape){
+        // Still 100% at extended max - use that value
+        bestIter = extendedMax;
+        console.log(`⚠️  Still 100% at ${extendedMax} - using maximum available`);
+      }
+    }
     
     // SPECIAL CASE: Deep inside the set (orbit never escapes)
     // If we found 100% quality in early escape mode AND the orbit escapes very early
@@ -956,6 +1003,9 @@
         iterSlider.value = bestIter;
         iterVal.textContent = bestIter;
         
+        // Save the optimized value to preserve during zooming
+        optimizedIterValue = bestIter;
+        
         // Clear cache so next render uses the optimized value
         cachedOrbit = null;
         
@@ -1011,7 +1061,18 @@
   // Update max iterations (either from slider or auto-calculated)
   function updateMaxIter(){
     if(isAutoIter){
-      maxIter = calculateAdaptiveIter();
+      // In deep zoom mode, preserve the optimizer's value if we have one
+      // Only recalculate if we don't have an optimized value yet
+      const inDeepZoom = (view.scale <= 1e-7);
+      
+      if(inDeepZoom && optimizedIterValue !== null){
+        // Keep the optimized value - don't reset it
+        maxIter = optimizedIterValue;
+      } else {
+        // Calculate adaptive iterations normally
+        maxIter = calculateAdaptiveIter();
+      }
+      
       iterSlider.value = maxIter;
       iterVal.textContent = maxIter;
       iterSlider.disabled = true;
@@ -1804,16 +1865,29 @@
       }
       
       // Auto-optimize iterations if quality is poor and auto-iter is enabled
-      // Don't optimize during animations or when quality is already good
-      if(isAutoIter && quality < 95 && !isOptimizingIterations && !animating){
+      // Also trigger if quality is 100% (black screen) - might need more iterations
+      // Don't optimize during animations or right after loading a saved location
+      const qualityTooLow = quality < 95;
+      const blackScreenWithLowIter = (quality >= 99.9 && maxIter < 10000); // All black, might need more
+      const shouldOptimize = isAutoIter && !isOptimizingIterations && !animating && !justLoadedSavedLocation && (qualityTooLow || blackScreenWithLowIter);
+      
+      if(shouldOptimize){
+        // Clear optimized value so we can search for a better one
+        optimizedIterValue = null;
+        
         // Show indicator immediately
         if(optimizationStatus){
           optimizationStatus.classList.remove('hidden');
         }
         
+        if(blackScreenWithLowIter){
+          console.log('🎯 Black screen detected - triggering optimization to find detail');
+        }
+        
         // Delay optimization slightly to avoid doing it on every pan
         setTimeout(() => {
-          if(isAutoIter && lastOrbitQuality < 0.95 && !animating){
+          const stillNeedsOpt = isAutoIter && !animating && (lastOrbitQuality < 0.95 || (lastOrbitQuality >= 0.999 && maxIter < 10000));
+          if(stillNeedsOpt){
             optimizeIterations();
           } else {
             // If conditions changed, hide the indicator
@@ -1937,6 +2011,15 @@
     centerRe = centerRe.sub(offsetRe.mul(scaleChange));
     centerIm = centerIm.sub(offsetIm.mul(scaleChange));
     syncCenterToView();
+
+    // Clear optimized iteration value if zooming significantly (>2x change) or leaving deep zoom
+    const wasDeepZoom = oldScale <= 1e-7;
+    const isDeepZoom = view.scale <= 1e-7;
+    const significantZoom = Math.abs(actualZoomFactor - 1) > 1.0; // >2x zoom change
+    
+    if(significantZoom || (wasDeepZoom && !isDeepZoom)){
+      optimizedIterValue = null; // Clear so optimizer can re-run for new depth
+    }
 
     updateMaxIter(); // Update iterations when zooming
     updateZoomDisplay(); // Update zoom level display
@@ -2398,13 +2481,16 @@
     }
   }, {passive: false});
 
-  // Set slider max based on device type
+  // Set slider max based on device type and GPU capabilities
+  const maxTexSize = getMaxTextureSize();
   if(isMobileDevice){
     iterSlider.max = 4000;
     console.log('Mobile device: slider max set to 4000');
   } else {
-    iterSlider.max = 20000;
-    console.log('Desktop device: slider max set to 20000');
+    // Desktop: use texture limit (typically 16384) with 25% headroom for manual adjustment
+    // Going much higher causes exponential slowdown at extreme zoom depths
+    iterSlider.max = Math.max(20000, Math.floor(maxTexSize * 1.25));
+    console.log(`Desktop device: slider max set to ${iterSlider.max} (texture limit: ${maxTexSize})`);
   }
 
   // UI controls
@@ -2447,7 +2533,17 @@
     'mini-mandelbrot': { cx: -0.7453, cy: 0.1127, scale: 0.000008, name: 'Mini Mandelbrot' },
     'misiurewicz': { cx: -0.1011, cy: 0.9563, scale: 0.0003, name: 'Misiurewicz Point' },
     'scepter': { cx: -1.2569, cy: 0.3803, scale: 0.0003, name: 'Scepter Valley' },
-    'satellite': { cx: -0.1565, cy: 1.0325, scale: 0.0001, name: 'Satellite' }
+    'satellite': { cx: -0.1565, cy: 1.0325, scale: 0.0001, name: 'Satellite' },
+    'final-frontier': { 
+      cx: -0.6701643319867839, 
+      cy: 0.31596038546507194, 
+      scale: 1.3332685139720305e-38, 
+      name: 'Final Frontier (e-38)',
+      centerRe: "-0.67016433198678397994845461647470317075281182378517295338727305111964",
+      centerIm: "0.315960385465071955462877684565985094697084162998605619399575406798352",
+      iterations: 16384,  // Balanced value - works at extreme depth without excessive computation
+      note: "Extreme zoom depth (e-38). Already optimized. If zooming shows black, manually increase iterations slider."
+    }
   };
 
   // Load custom locations from localStorage
@@ -2526,13 +2622,50 @@
           centerIm = new Decimal(loc.centerIm);
           view.scale = loc.scale;
           
+          // If location has saved iterations, use them as starting point
+          const hasSavedIterations = loc.iterations && isAutoIter;
+          if(hasSavedIterations){
+            maxIter = loc.iterations;
+            iterSlider.value = maxIter;
+            iterVal.textContent = maxIter;
+            optimizedIterValue = maxIter; // Treat saved iterations as optimized value
+            justLoadedSavedLocation = true; // Prevent auto-optimization for a while
+            console.log(`📂 Loaded saved location with ${maxIter} iterations`);
+            
+            // Clear flag after 5 seconds (enough time for user to see the result)
+            setTimeout(() => {
+              justLoadedSavedLocation = false;
+            }, 5000);
+          }
+          
+          // Show helpful note if location has one
+          if(loc.note){
+            console.log(`💡 ${loc.note}`);
+          }
+          
           // Clear cached orbit so it recalculates with new coordinates
           cachedOrbit = null;
           
           syncCenterToView(); // Sync the Decimal values to view (or keep as fallback)
-          updateMaxIter();
+          
+          // Only call updateMaxIter if NO saved iterations (otherwise it overwrites our value)
+          if(!hasSavedIterations){
+            updateMaxIter();
+          }
+          
           updateZoomDisplay();
           requestRender();
+          
+          // For deep zoom locations WITHOUT saved iterations, force optimization after initial render
+          // If iterations are saved, trust them and skip optimization
+          if(view.scale <= 1e-7 && isAutoIter && !loc.iterations){
+            setTimeout(() => {
+              if(useDeepZoom && !isOptimizingIterations){
+                console.log('🎯 Deep zoom location loaded - forcing iteration optimization');
+                optimizeIterations();
+              }
+            }, 1500); // Wait for initial render to complete
+          }
         } else {
           // Legacy location without high-precision coords
           animateView(loc.cx, loc.cy, loc.scale);
@@ -2865,7 +2998,7 @@
     // Generate a unique key
     const key = 'loc_' + Date.now();
     
-    // Save location with high-precision coordinates
+    // Save location with high-precision coordinates AND current iteration count
     customLocations[key] = {
       name: name,
       cx: view.cx,
@@ -2873,7 +3006,9 @@
       scale: view.scale,
       // Store high-precision Decimal coordinates as strings for deep zoom
       centerRe: centerRe.toString(),
-      centerIm: centerIm.toString()
+      centerIm: centerIm.toString(),
+      // Save the current iteration count as a starting point for future loads
+      iterations: maxIter
     };
 
     saveCustomLocations(customLocations);
@@ -2881,6 +3016,8 @@
 
     // Close modal
     saveLocationModal.classList.add('hidden');
+    
+    console.log(`💾 Saved location "${name}" with ${maxIter} iterations`);
   }
 
   saveLocationBtn.addEventListener('click', saveCurrentLocation);
