@@ -261,6 +261,7 @@
   let isOptimizingIterations = false; // Prevent recursive optimization
   let optimizedIterValue = null; // Store optimizer's result to preserve during zoom
   let justLoadedSavedLocation = false; // Flag to prevent auto-optimization right after loading saved location
+  let justCompletedZoomAnimation = false; // Flag to prevent auto-optimization right after zoom animation
   
   // Reference orbit texture for GPU
   let refOrbitTexture = null;
@@ -1198,6 +1199,11 @@
         requestAnimationFrame(step);
       } else {
         animating = false;
+        // Set grace period flag to prevent immediate optimization
+        justCompletedZoomAnimation = true;
+        setTimeout(() => {
+          justCompletedZoomAnimation = false;
+        }, 2000); // 2 second grace period after zoom animation
       }
     }
     requestAnimationFrame(step);
@@ -1866,10 +1872,10 @@
       
       // Auto-optimize iterations if quality is poor and auto-iter is enabled
       // Also trigger if quality is 100% (black screen) - might need more iterations
-      // Don't optimize during animations or right after loading a saved location
+      // Don't optimize during animations or right after loading a saved location or completing zoom animation
       const qualityTooLow = quality < 95;
       const blackScreenWithLowIter = (quality >= 99.9 && maxIter < 10000); // All black, might need more
-      const shouldOptimize = isAutoIter && !isOptimizingIterations && !animating && !justLoadedSavedLocation && (qualityTooLow || blackScreenWithLowIter);
+      const shouldOptimize = isAutoIter && !isOptimizingIterations && !animating && !justLoadedSavedLocation && !justCompletedZoomAnimation && (qualityTooLow || blackScreenWithLowIter);
       
       if(shouldOptimize){
         // Clear optimized value so we can search for a better one
@@ -2534,15 +2540,14 @@
     'misiurewicz': { cx: -0.1011, cy: 0.9563, scale: 0.0003, name: 'Misiurewicz Point' },
     'scepter': { cx: -1.2569, cy: 0.3803, scale: 0.0003, name: 'Scepter Valley' },
     'satellite': { cx: -0.1565, cy: 1.0325, scale: 0.0001, name: 'Satellite' },
-    'final-frontier': { 
-      cx: -0.6701643319867839, 
-      cy: 0.31596038546507194, 
-      scale: 1.3332685139720305e-38, 
-      name: 'Final Frontier (e-38)',
-      centerRe: "-0.67016433198678397994845461647470317075281182378517295338727305111964",
-      centerIm: "0.315960385465071955462877684565985094697084162998605619399575406798352",
-      iterations: 16384,  // Balanced value - works at extreme depth without excessive computation
-      note: "Extreme zoom depth (e-38). Already optimized. If zooming shows black, manually increase iterations slider."
+    'deep-river': { 
+      cx: -1.0242634588322839, 
+      cy: 0.28090100808524593, 
+      scale: 5.480436e-23, 
+      name: 'Deep River (e-23)',
+      centerRe: "-1.0242634588322839",
+      centerIm: "0.28090100808524593",
+      iterations: 7801
     }
   };
 
