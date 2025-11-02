@@ -362,6 +362,55 @@
     return cachedOrbit;
   }
 
+  // Helper: Check orbit tail stability (detects chaotic behavior)
+  function checkOrbitStability(orbit, logDetails = false){
+    if(orbit.length < 10) return 1.0; // Too short to analyze
+    
+    // CRITICAL: computeRefOrbit() pushes values BEFORE iterating, then breaks on escape
+    // So orbit.length IS the escape point - all values in the array have mag ≤ 2.0
+    // The orbit "escaped" if it broke early (length < maxIterations tested)
+    
+    // Check stability of the last 10 values (these are all pre-escape by definition)
+    const tailLength = Math.min(10, orbit.length);
+    const tail = orbit.slice(-tailLength);
+    
+    // Calculate maximum delta between consecutive tail values
+    let maxDelta = 0;
+    for(let i = 1; i < tail.length; i++){
+      const deltaRe = Math.abs(tail[i][0].minus(tail[i-1][0]).toNumber());
+      const deltaIm = Math.abs(tail[i][1].minus(tail[i-1][1]).toNumber());
+      const delta = Math.sqrt(deltaRe * deltaRe + deltaIm * deltaIm);
+      maxDelta = Math.max(maxDelta, delta);
+    }
+    
+    // Get last value magnitude to determine if near escape
+    const lastVal = orbit[orbit.length - 1];
+    const lastMag = Math.sqrt(
+      lastVal[0].mul(lastVal[0]).add(lastVal[1].mul(lastVal[1])).toNumber()
+    );
+    
+    // Diagnostic logging
+    if(logDetails){
+      console.log(`   📐 Orbit length: ${orbit.length}, Last mag: ${lastMag.toFixed(2)}, Max delta: ${maxDelta.toFixed(2)}`);
+    }
+    
+    // CRITICAL: If orbit is growing (mag > 1.0), use relaxed thresholds
+    // Once |z| > 1, values grow exponentially - larger deltas are expected, not "unstable"
+    const isNearEscape = lastMag > 1.0;
+    
+    if(isNearEscape){
+      // Escaping or near-escaping orbits can have larger deltas - that's expected exponential growth
+      if(maxDelta > 10.0) return 0.0; // Extremely chaotic
+      if(maxDelta > 5.0) return 0.5; // Moderately chaotic
+      return 1.0; // Normal escape behavior
+    } else {
+      // Deep-in-set orbits should be stable
+      if(maxDelta > 2.0) return 0.0; // Extremely unstable
+      if(maxDelta > 1.0) return 0.5; // Moderately unstable
+      return 1.0; // Stable
+    }
+  }
+
   // Optimize maxIter to achieve best orbit quality (100% if possible)
   function optimizeIterations(){
     if(isOptimizingIterations || !useDeepZoom) return;
@@ -381,56 +430,214 @@
       const currentIter = maxIter;
       let bestIter = currentIter;
       let bestQuality = 0;
+      let bestStability = 0;
+      let maxEscapeAt100Percent = 0;  // Track highest escape point when quality = 100%
+    
+    // Phase 0: Quick check - is the orbit escaping early?
+    // If current quality is low, we need to search DOWNWARD, not upward
+    const currentOrbit = computeRefOrbit(currentIter);
+    const currentQuality = currentOrbit.length / currentIter;
+    
+    console.log(`📊 Initial orbit quality: ${(currentQuality*100).toFixed(1)}% (${currentOrbit.length}/${currentIter})`);
     
     // Phase 1: Coarse search over wide range
     // Allow searching down to 50 iterations minimum (for deep-in-set locations)
     // Cap at WebGL texture size limit
     const MAX_ITER_LIMIT = getMaxTextureSize();
-    const minIter = Math.max(50, Math.floor(currentIter * 0.2));
-    const maxIterSearch = Math.min(MAX_ITER_LIMIT, Math.floor(currentIter * 3));
-    const coarseStep = Math.max(50, Math.floor((maxIterSearch - minIter) / 40));
+    
+    // Smart search range: if orbit escapes early (quality < 50%), focus search BELOW current value
+    let minIter, maxIterSearch;
+    let earlyEscapeMode = false; // Track if we're in early escape mode
+    if(currentQuality < 0.5){
+      // Orbit escaping early - search from just above escape point to current value
+      const escapePoint = currentOrbit.length;
+      minIter = Math.max(50, Math.floor(escapePoint * 0.8));
+      maxIterSearch = Math.min(currentIter, Math.floor(escapePoint * 1.5));
+      earlyEscapeMode = true;
+      console.log(`🎯 Early escape detected - focusing search near escape point (${escapePoint})`);
+    } else {
+      // Normal case - search wider range around current value
+      minIter = Math.max(50, Math.floor(currentIter * 0.2));
+      maxIterSearch = Math.min(MAX_ITER_LIMIT, Math.floor(currentIter * 3));
+    }
+    
+    const coarseStep = Math.max(10, Math.floor((maxIterSearch - minIter) / 40));
     
     console.log(`Phase 1: Coarse search ${minIter} to ${maxIterSearch} (step ${coarseStep})`);
+    console.log(`Current escape point: ${currentOrbit.length} iterations`);
     
     for(let testIter = minIter; testIter <= maxIterSearch; testIter += coarseStep){
       const orbit = computeRefOrbit(testIter);
-      const quality = orbit.length / testIter;
+      let quality = orbit.length / testIter;
       
-      // We want quality close to 100% but NOT over 100% (which means orbit never escaped)
-      // Prioritize values that escape (quality < 1.0) over those that don't
-      if(quality <= 1.0 && quality > bestQuality){
-        bestQuality = quality;
-        bestIter = testIter;
-      } else if(bestQuality === 0 && quality > 1.0){
-        // Only accept >100% if we haven't found anything that escapes yet
-        bestQuality = quality;
-        bestIter = testIter;
+      // Check orbit stability (with detailed logging for iterations near escape point)
+      const currentEscapePoint = currentOrbit.length;
+      const isNearEscape = Math.abs(testIter - currentEscapePoint) < 20;
+      const stability = checkOrbitStability(orbit, isNearEscape);
+      
+      // Log every test value for debugging
+      console.log(`  Testing ${testIter}: escape=${orbit.length}, quality=${(quality*100).toFixed(1)}%, stability=${(stability*100).toFixed(0)}%`);
+      
+      // Track maximum escape point when we see 100% quality
+      // (Multiple values can all have 100% quality, we want the highest escape point)
+      if(quality >= 0.999){
+        maxEscapeAt100Percent = Math.max(maxEscapeAt100Percent, orbit.length);
+      }
+      
+      // Penalize unstable orbits
+      if(stability < 1.0){
+        quality *= (0.5 + stability * 0.5); // Reduce quality by up to 50%
+        if(stability < 0.5){
+          console.log(`⚠️  Unstable orbit at ${testIter} iter (stability: ${stability.toFixed(2)})`);
+          if(isNearEscape) checkOrbitStability(orbit, true); // Log details for near-escape values
+        }
+      }
+      
+      // KEY INSIGHT: We want max_iterations to be CLOSE TO the escape point
+      // - If testIter = escapePoint → quality 100% (orbit escapes exactly at max)
+      // - If testIter > escapePoint → quality <100% (we're allowing extra iterations)
+      // 
+      // GOAL: Find testIter where quality is in range 92-99.5%
+      // Prefer values with HIGHER quality (closer to 99.5%) over lower quality
+      const escapePoint = orbit.length;
+      
+      // We want quality in the sweet spot (92-99.5%)
+      // Within that range, prefer higher quality (orbit escapes closer to max_iterations)
+      if(quality >= 0.92 && quality <= 0.995){
+        // In the sweet spot - prefer higher quality within the range
+        if(bestQuality === 0 || quality > bestQuality){
+          bestQuality = quality;
+          bestIter = testIter;
+          bestStability = stability;
+        }
+      } else if(bestQuality === 0){
+        // Haven't found anything in sweet spot yet - take the value with quality closest to 0.95
+        const targetQuality = 0.95;
+        const currentDist = Math.abs(quality - targetQuality);
+        const bestDist = Math.abs(bestQuality - targetQuality);
+        if(quality <= 1.0 && currentDist < bestDist){
+          bestQuality = quality;
+          bestIter = testIter;
+          bestStability = stability;
+        }
       }
     }
     
-    console.log(`Phase 1 result: ${bestIter} iterations (${(bestQuality*100).toFixed(1)}% quality)`);
+    // If we found multiple 100% quality values (common deep in set),
+    // prefer a value slightly above the maximum escape point to ensure detail is visible
+    // This prevents choosing low iterations (e.g., 143) when higher iterations (e.g., 478) give better detail
+    if(maxEscapeAt100Percent > 0 && maxEscapeAt100Percent > bestIter){
+      // Use value just slightly above max escape point (1-2% higher)
+      const preferredIter = Math.ceil(maxEscapeAt100Percent * 1.02);
+      console.log(`📍 Found 100% quality up to escape=${maxEscapeAt100Percent}, preferring ${preferredIter} iterations for detail (was ${bestIter})`);
+      bestIter = preferredIter;
+      bestQuality = 1.0;
+      bestStability = 1.0; // Assume stable since we found 100% quality
+    }
+    
+    console.log(`Phase 1 result: ${bestIter} iterations (${(bestQuality*100).toFixed(1)}% quality, ${(bestStability*100).toFixed(0)}% stability)`);
+    
+    // SPECIAL CASE: Deep inside the set (orbit never escapes)
+    // If we found 100% quality in early escape mode AND the orbit escapes very early
+    // compared to current iterations, we're viewing the set from deep inside
+    // The orbit escaping at (say) 217 means we need ~300-600 iterations for detail, not 3000+
+    if(earlyEscapeMode && bestQuality >= 0.999 && currentOrbit.length < 500 && currentIter > 1000){
+      console.log(`⚠️  Deep-in-set view detected: orbit escapes at ${currentOrbit.length}, current iterations ${currentIter}`);
+      console.log(`🔍 Searching for optimal detail range...`);
+      
+      // Start from a bit above the escape point and search upward
+      const searchStart = Math.max(Math.floor(currentOrbit.length * 1.5), 300);
+      const searchMax = Math.min(MAX_ITER_LIMIT, Math.max(2000, currentIter));
+      const searchStep = Math.max(20, Math.floor((searchMax - searchStart) / 40));
+      
+      let foundDetail = false;
+      
+      for(let testIter = searchStart; testIter <= searchMax; testIter += searchStep){
+        const orbit = computeRefOrbit(testIter);
+        const quality = orbit.length / testIter;
+        
+        // Look for quality in the 20-70% range (orbit escapes but shows layered detail)
+        if(quality >= 0.20 && quality <= 0.70){
+          bestIter = testIter;
+          bestQuality = quality;
+          foundDetail = true;
+          console.log(`✓ Found detail at ${testIter} iterations (${(quality*100).toFixed(1)}% quality)`);
+          break;
+        }
+      }
+      
+      if(!foundDetail){
+        // Use a reasonable multiple of the escape point
+        bestIter = Math.floor(currentOrbit.length * 3);
+        const testOrbit = computeRefOrbit(bestIter);
+        bestQuality = testOrbit.length / bestIter;
+        console.log(`⚠️  Using ${bestIter} iterations (3× escape point, ${(bestQuality*100).toFixed(1)}% quality)`);
+      }
+    }
     
     // Phase 2: Fine search around the best value found
     // Search both below (to find highest escaping value) and above (in case we're too low)
     if(bestQuality < 0.999){
       const fineMin = Math.max(50, bestIter - coarseStep);
       const fineMax = Math.min(MAX_ITER_LIMIT, bestIter + coarseStep);
-      const fineStep = Math.max(5, Math.floor(coarseStep / 10));
+      // Use smaller step for better precision (was /10, now /30)
+      const fineStep = Math.max(1, Math.floor(coarseStep / 30));
       
       console.log(`Phase 2: Fine search ${fineMin} to ${fineMax} (step ${fineStep})`);
       
+      let allValuesComplete = true; // Track if ALL values show 100% quality
+      let phase2BestQuality = 0;
+      let phase2BestIter = bestIter;
+      
       for(let testIter = fineMin; testIter <= fineMax; testIter += fineStep){
         const orbit = computeRefOrbit(testIter);
-        const quality = orbit.length / testIter;
+        let quality = orbit.length / testIter;
         
-        // Only accept if quality is ≤100% (orbit escapes)
-        if(quality <= 1.0 && quality > bestQuality){
+        // Check orbit stability (no detailed logging by default)
+        const stability = checkOrbitStability(orbit, false);
+        
+        // Track if any value has orbit that doesn't complete
+        if(quality < 1.0) allValuesComplete = false;
+        
+        // Penalize unstable orbits
+        if(stability < 1.0){
+          quality *= (0.5 + stability * 0.5);
+        }
+        
+        // CRITICAL: Prefer values in the 92-99.5% sweet spot
+        // Don't replace a good value (92-99.5%) with 100% quality!
+        const inSweetSpot = quality >= 0.92 && quality <= 0.995;
+        const currentInSweetSpot = bestQuality >= 0.92 && bestQuality <= 0.995;
+        
+        if(inSweetSpot){
+          // Value in sweet spot - prefer higher quality within range
+          if(!currentInSweetSpot || quality > bestQuality){
+            bestQuality = quality;
+            bestIter = testIter;
+            bestStability = stability;
+            phase2BestQuality = quality;
+            phase2BestIter = testIter;
+          }
+        } else if(!currentInSweetSpot && quality <= 1.0 && quality > bestQuality){
+          // Only update if current value isn't already in sweet spot
           bestQuality = quality;
           bestIter = testIter;
+          bestStability = stability;
+          phase2BestQuality = quality;
+          phase2BestIter = testIter;
         }
         
         // If we found very close to 100% quality (but not over), stop searching
         if(quality >= 0.98 && quality < 0.999) break;
+      }
+      
+      // CRITICAL: If ALL Phase 2 values show 100% quality, we're searching TOO LOW
+      // The actual escape point must be much higher - keep original value
+      if(allValuesComplete){
+        console.log(`⚠️  Phase 2: All values complete without escaping - keeping current ${currentIter} iterations`);
+        bestIter = currentIter;
+        bestQuality = currentOrbit.length / currentIter;
+        bestStability = 0.5;
       }
     }
     
@@ -443,12 +650,21 @@
       
       for(let testIter = ultraFineMin; testIter <= ultraFineMax; testIter += 5){
         const orbit = computeRefOrbit(testIter);
-        const quality = orbit.length / testIter;
+        let quality = orbit.length / testIter;
+        
+        // Check orbit stability
+        const stability = checkOrbitStability(orbit);
+        
+        // Penalize unstable orbits
+        if(stability < 1.0){
+          quality *= (0.5 + stability * 0.5);
+        }
         
         // Only accept if quality is ≤100% and better than current
         if(quality <= 1.0 && quality > bestQuality){
           bestQuality = quality;
           bestIter = testIter;
+          bestStability = stability;
         }
         
         // Stop if we hit the sweet spot (98-99.5%)
@@ -456,52 +672,163 @@
       }
     }
     
-    // If we ended up with >100% quality (orbit never escapes), back off
-    if(bestQuality > 1.0){
-      console.log(`⚠️ Orbit doesn't escape at ${bestIter} iterations, searching lower...`);
-      // Search downward from bestIter to find where it does escape
-      for(let testIter = bestIter - 10; testIter >= 50; testIter -= 10){
-        const orbit = computeRefOrbit(testIter);
-        const quality = orbit.length / testIter;
-        if(quality <= 1.0){
-          bestQuality = quality;
-          bestIter = testIter;
-          break;
-        }
-      }
-    }
-    
-    // Safety check: if orbit never escapes (100% quality), we need MORE iterations not less
-    // Search upward to find a point just below 100% for maximum detail
-    if(bestQuality >= 0.999){
-      console.log(`⚠️ Orbit completes without escaping at ${bestIter} iterations, searching higher...`);
-      let foundBetter = false;
+    // Phase 4: Stability boundary test for near-optimal results (98%+)
+    if(bestQuality >= 0.98 && bestQuality < 1.0){
+      console.log('Phase 4: Stability boundary test (±1 iteration)');
       
-      // Search upward from current best in larger steps
-      for(let testIter = bestIter * 2; testIter <= MAX_ITER_LIMIT; testIter += Math.max(100, Math.floor(bestIter * 0.5))){
+      // Test iterations just above and below
+      const testIterations = [bestIter - 1, bestIter + 1].filter(i => i >= 50 && i <= MAX_ITER_LIMIT);
+      
+      for(const testIter of testIterations){
         const orbit = computeRefOrbit(testIter);
         const quality = orbit.length / testIter;
+        const stability = checkOrbitStability(orbit);
         
-        // Look for 92-99% quality (maximum detail without going over 100%)
-        if(quality >= 0.92 && quality < 0.995){
-          bestQuality = quality;
-          bestIter = testIter;
-          foundBetter = true;
-          console.log(`✓ Found better value: ${testIter} iterations (${(quality*100).toFixed(1)}% quality)`);
+        // Check for large quality jumps (indicates unstable zone)
+        const qualityDelta = Math.abs(quality - bestQuality);
+        
+        if(qualityDelta > 0.05){
+          console.log(`⚠️  Unstable boundary detected: ${bestIter} ±1 iter has ${(qualityDelta*100).toFixed(1)}% quality swing`);
+          
+          // Back off from the edge
+          if(bestIter > 100){
+            const saferIter = Math.max(50, bestIter - 5);
+            const saferOrbit = computeRefOrbit(saferIter);
+            const saferQuality = saferOrbit.length / saferIter;
+            const saferStability = checkOrbitStability(saferOrbit);
+            
+            // Only use safer value if it's still reasonably good
+            if(saferQuality >= 0.92 && saferStability >= bestStability){
+              console.log(`✓ Backing off to safer value: ${bestIter} → ${saferIter}`);
+              bestIter = saferIter;
+              bestQuality = saferQuality;
+              bestStability = saferStability;
+            }
+          }
           break;
         }
       }
+    }
+    
+    // If we ended up with >100% quality (orbit never escapes), search DOWNWARD aggressively
+    if(bestQuality > 1.0){
+      console.log(`⚠️ Orbit doesn't escape at ${bestIter} iterations (${(bestQuality*100).toFixed(1)}%), searching lower...`);
       
-      // If we couldn't find anything better, at least double the iterations
-      if(!foundBetter && bestIter < MAX_ITER_LIMIT / 2){
-        bestIter = Math.min(MAX_ITER_LIMIT, bestIter * 4);
-        const orbit = computeRefOrbit(bestIter);
-        bestQuality = orbit.length / bestIter;
-        console.log(`⬆️ Increasing iterations: → ${bestIter} (${(bestQuality*100).toFixed(1)}% quality)`);
+      // Binary search downward to find the escape point efficiently
+      let low = 50;
+      let high = bestIter;
+      let foundEscaping = null;
+      
+      while(high - low > 50){
+        const mid = Math.floor((low + high) / 2);
+        const orbit = computeRefOrbit(mid);
+        const quality = orbit.length / mid;
+        
+        console.log(`   🔍 Testing ${mid} iter: ${(quality*100).toFixed(1)}% quality`);
+        
+        if(quality <= 1.0){
+          // Orbit escapes - search higher for best value
+          foundEscaping = {iter: mid, quality: quality};
+          low = mid;
+        } else {
+          // Orbit doesn't escape - search lower
+          high = mid;
+        }
+      }
+      
+      // Fine-tune around the found escape point
+      if(foundEscaping){
+        console.log(`   ✓ Found escape point near ${foundEscaping.iter} iterations`);
+        
+        // Search in detail around this point
+        const searchMin = Math.max(50, foundEscaping.iter - 50);
+        const searchMax = Math.min(bestIter, foundEscaping.iter + 200);
+        
+        for(let testIter = searchMin; testIter <= searchMax; testIter += 5){
+          const orbit = computeRefOrbit(testIter);
+          const quality = orbit.length / testIter;
+          const stability = checkOrbitStability(orbit);
+          
+          if(quality <= 1.0 && quality > foundEscaping.quality){
+            foundEscaping = {iter: testIter, quality: quality};
+            bestIter = testIter;
+            bestQuality = quality;
+            bestStability = stability;
+          }
+        }
+      } else {
+        // Fallback: linear search from current value downward
+        for(let testIter = high; testIter >= 50; testIter -= 10){
+          const orbit = computeRefOrbit(testIter);
+          const quality = orbit.length / testIter;
+          if(quality <= 1.0){
+            bestQuality = quality;
+            bestIter = testIter;
+            break;
+          }
+        }
+      }
+      
+      console.log(`   → Adjusted to ${bestIter} iterations (${(bestQuality*100).toFixed(1)}% quality)`);
+    }
+    
+    // Safety check: if orbit never escapes AND quality is too low, we need MORE iterations
+    // BUT: Only run this if we haven't already found a good value (92-99.5% range)
+    // If Phase 1 found a value in the target range, trust it!
+    // ALSO: Don't run if we have 100% quality - that means the orbit IS escaping at the right point
+    // ALSO: Don't run in early escape mode - we already searched the right range
+    const alreadyFoundGoodValue = bestQuality >= 0.92 && bestQuality < 0.995;
+    const orbitIsEscaping = bestQuality >= 0.999; // 100% quality means orbit escapes at bestIter
+    
+    if(!alreadyFoundGoodValue && orbitIsEscaping && !earlyEscapeMode){
+      // Check if orbit actually stayed bounded (didn't escape)
+      const finalOrbit = computeRefOrbit(bestIter);
+      const lastVal = finalOrbit[finalOrbit.length - 1];
+      const lastMag = Math.sqrt(lastVal[0].mul(lastVal[0]).add(lastVal[1].mul(lastVal[1])).toNumber());
+      const orbitStayedBounded = lastMag < 1.0; // Lower threshold - orbit truly stayed bounded
+      
+      if(orbitStayedBounded){
+        console.log(`⚠️ Orbit stayed bounded (mag ${lastMag.toFixed(2)}) at ${bestIter} iterations, searching higher...`);
+        let foundBetter = false;
+        
+        // Search upward from current best in larger steps
+        for(let testIter = bestIter * 2; testIter <= MAX_ITER_LIMIT; testIter += Math.max(100, Math.floor(bestIter * 0.5))){
+          const orbit = computeRefOrbit(testIter);
+          const quality = orbit.length / testIter;
+          
+          // Look for 92-99% quality (maximum detail without going over 100%)
+          if(quality >= 0.92 && quality < 0.995){
+            bestQuality = quality;
+            bestIter = testIter;
+            foundBetter = true;
+            console.log(`✓ Found better value: ${testIter} iterations (${(quality*100).toFixed(1)}% quality)`);
+            break;
+          }
+        }
+        
+        // If we couldn't find anything better, at least double the iterations
+        if(!foundBetter && bestIter < MAX_ITER_LIMIT / 2){
+          bestIter = Math.min(MAX_ITER_LIMIT, bestIter * 4);
+          const orbit = computeRefOrbit(bestIter);
+          bestQuality = orbit.length / bestIter;
+          console.log(`⬆️ Increasing iterations: → ${bestIter} (${(bestQuality*100).toFixed(1)}% quality)`);
+        }
       }
     }
     
-      console.log(`✅ Optimization complete: ${currentIter} → ${bestIter} iterations (${(bestQuality*100).toFixed(1)}% quality)`);
+      // Final stability report
+      let stabilityEmoji = '✅';
+      let stabilityMsg = 'stable';
+      if(bestStability < 0.5){
+        stabilityEmoji = '⚠️ ';
+        stabilityMsg = 'UNSTABLE';
+      } else if(bestStability < 1.0){
+        stabilityEmoji = '⚡';
+        stabilityMsg = 'moderate';
+      }
+      
+      console.log(`${stabilityEmoji} Optimization complete: ${currentIter} → ${bestIter} iterations`);
+      console.log(`   Quality: ${(bestQuality*100).toFixed(1)}% | Stability: ${(bestStability*100).toFixed(0)}% (${stabilityMsg})`);
       
       // Ensure indicator is visible for at least 500ms so users see it
       const optimizationDuration = Date.now() - optimizationStartTime;
@@ -518,7 +845,32 @@
       }, remainingTime);
       
       // Update the slider and maxIter if we found a better value
-      if(bestIter !== currentIter && bestQuality > lastOrbitQuality * 0.95){
+      let shouldUpdate = false;
+      
+      if(bestIter !== currentIter){
+        // Primary rule: Accept any value with quality ≥ 92%
+        if(bestQuality >= 0.92){
+          shouldUpdate = true;
+          console.log(`✓ Accepting ${bestIter} iterations with ${(bestQuality*100).toFixed(1)}% quality (was ${(lastOrbitQuality*100).toFixed(1)}%)`);
+        }
+        // Rule 2: If current quality is poor (<80%), accept ANY improvement of 5%+
+        else if(lastOrbitQuality < 0.80 && bestQuality >= lastOrbitQuality + 0.05){
+          shouldUpdate = true;
+          console.log(`✓ Poor current quality - accepting improvement: ${(lastOrbitQuality*100).toFixed(1)}% → ${(bestQuality*100).toFixed(1)}%`);
+        }
+        // Rule 3: Accept significant improvements (10%+ quality gain)
+        else if(bestQuality >= lastOrbitQuality + 0.10){
+          shouldUpdate = true;
+          console.log(`✓ Significant improvement: ${(lastOrbitQuality*100).toFixed(1)}% → ${(bestQuality*100).toFixed(1)}%`);
+        }
+        // Reject if quality doesn't meet any criteria
+        else {
+          console.log(`✗ Rejecting ${bestIter} iterations - quality ${(bestQuality*100).toFixed(1)}% not sufficient improvement (current: ${(lastOrbitQuality*100).toFixed(1)}%)`);
+        }
+      }
+      
+      if(shouldUpdate){
+        console.log(`🔄 Updating iterations: ${currentIter} → ${bestIter}`);
         maxIter = bestIter;
         iterSlider.value = bestIter;
         iterVal.textContent = bestIter;
