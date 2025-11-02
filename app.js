@@ -998,34 +998,14 @@
   function calculateAdaptiveIter(){
     const zoomDepth = Math.log10(1 / view.scale);
     
-    if(hasDiscreteGPU){
-      // Powerful GPU: Aggressive scaling for ultra-deep zoom
-      // At scale 1e-2: ~800 iterations
-      // At scale 1e-5: ~1800 iterations
-      // At scale 1e-7: ~2400 iterations
-      // At scale 1e-8: ~2800 iterations
-      // At scale 1e-9: ~3200 iterations
-      // At scale 1e-10: ~3600 iterations
-      // At scale 1e-15: ~5600 iterations
-      // At scale 1e-20: ~8000 iterations
-      // At scale 1e-25: ~10000 iterations
-      // At scale 1e-30: ~12000 iterations
-      // At scale 1e-37: ~15200 iterations
-      // At scale 1e-45: ~18400 iterations (ultimate deep zoom)
-      const iter = Math.min(20000, Math.max(100, Math.floor(400 + zoomDepth * 400)));
-      return iter;
-    } else {
-      // Integrated/Mobile GPU: Much more conservative scaling for smooth performance
-      // Mobile GPUs struggle with high iteration counts, especially for black (in-set) areas
-      // At scale 1e-2: ~170 iterations
-      // At scale 1e-4: ~290 iterations
-      // At scale 1e-7: ~470 iterations
-      // At scale 1e-10: ~650 iterations
-      // At scale 1e-15: ~950 iterations
-      // Cap at 1500 to maintain smooth panning/zooming on all mobile devices
-      const iter = Math.min(1500, Math.max(50, Math.floor(50 + zoomDepth * 60)));
-      return iter;
-    }
+    // Unified conservative scaling for both desktop and mobile
+    // Fewer iterations at shallow zoom produces cleaner images with less noise
+    // At scale 1e-2: ~120 iterations
+    // At scale 1e-4: ~170 iterations
+    // At scale 1e-7: ~295 iterations (deep zoom threshold - optimizer takes over)
+    // Cap at 600 for shallow zoom - deep zoom optimizer will find true optimum
+    const iter = Math.min(600, Math.max(50, Math.floor(50 + zoomDepth * 35)));
+    return iter;
   }
 
   // Update max iterations (either from slider or auto-calculated)
@@ -2173,8 +2153,11 @@
   // Double-click to zoom in with animation
   canvasGL.addEventListener('dblclick', function(e){
     const rect = canvasGL.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) * devicePixelRatio;
-    const my = (e.clientY - rect.top) * devicePixelRatio;
+    // Calculate actual CSS to canvas pixel ratio (same as touch handling)
+    const actualRatioX = canvasGL.width / canvasGL.clientWidth;
+    const actualRatioY = canvasGL.height / canvasGL.clientHeight;
+    const mx = (e.clientX - rect.left) * actualRatioX;
+    const my = (e.clientY - rect.top) * actualRatioY;
     
     // Calculate target coordinates with high precision for deep zoom
     let targetCx, targetCy;
