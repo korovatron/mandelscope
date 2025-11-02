@@ -2816,11 +2816,13 @@
 
   // Mode toggle
   function switchToJulia(cx, cy){
-    // Save current Mandelbrot view before switching
+    // Save current Mandelbrot view before switching (including high-precision center for deep zoom)
     savedMandelbrotView = {
       cx: view.cx,
       cy: view.cy,
-      scale: view.scale
+      scale: view.scale,
+      centerRe: new Decimal(centerRe),
+      centerIm: new Decimal(centerIm)
     };
     
     juliaC.x = cx;
@@ -2858,8 +2860,14 @@
       view.cx = savedMandelbrotView.cx;
       view.cy = savedMandelbrotView.cy;
       view.scale = savedMandelbrotView.scale;
-      // Sync high-precision center
-      syncViewToCenter();
+      // Restore high-precision center for deep zoom
+      if(savedMandelbrotView.centerRe && savedMandelbrotView.centerIm){
+        centerRe = new Decimal(savedMandelbrotView.centerRe);
+        centerIm = new Decimal(savedMandelbrotView.centerIm);
+        syncCenterToView(); // Sync from high-precision to view
+      } else {
+        syncViewToCenter(); // Sync from view to high-precision
+      }
       updateZoomDisplay();
     } else {
       resetView();
