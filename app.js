@@ -685,16 +685,38 @@
     animStart = performance.now();
     animFrom = {cx: view.cx, cy: view.cy, scale: view.scale};
     animTo = {cx: targetCx, cy: targetCy, scale: targetScale};
+    
+    // Store Decimal starting point for deep zoom precision
+    let animFromDecimal = null;
+    let animToDecimal = null;
+    if(useDeepZoom){
+      animFromDecimal = {re: new Decimal(centerRe), im: new Decimal(centerIm)};
+      animToDecimal = {re: new Decimal(targetCx.toString()), im: new Decimal(targetCy.toString())};
+    }
+    
     function step(now){
       const elapsed = now - animStart;
       const t = Math.min(elapsed / duration, 1);
       // ease in out
       const easeT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      view.cx = animFrom.cx + (animTo.cx - animFrom.cx) * easeT;
-      view.cy = animFrom.cy + (animTo.cy - animFrom.cy) * easeT;
+      
+      // Interpolate scale normally
       view.scale = animFrom.scale + (animTo.scale - animFrom.scale) * easeT;
-      // Sync high-precision center
-      syncViewToCenter();
+      
+      // Interpolate position with Decimal precision if in deep zoom
+      if(useDeepZoom && animFromDecimal && animToDecimal){
+        const deltaRe = animToDecimal.re.minus(animFromDecimal.re);
+        const deltaIm = animToDecimal.im.minus(animFromDecimal.im);
+        centerRe = animFromDecimal.re.add(deltaRe.times(easeT));
+        centerIm = animFromDecimal.im.add(deltaIm.times(easeT));
+        syncCenterToView();
+      } else {
+        view.cx = animFrom.cx + (animTo.cx - animFrom.cx) * easeT;
+        view.cy = animFrom.cy + (animTo.cy - animFrom.cy) * easeT;
+        // Sync high-precision center
+        syncViewToCenter();
+      }
+      
       updateMaxIter(); // Update iterations during animation
       updateZoomDisplay(); // Update zoom level display
       requestRender();
@@ -1737,14 +1759,9 @@
       const targetReDecimal = centerRe.add(deltaRe);
       const targetImDecimal = centerIm.add(deltaIm);
       
-      // Update high-precision center immediately
-      centerRe = targetReDecimal;
-      centerIm = targetImDecimal;
-      syncCenterToView();
-      
-      // Use the synced float values for animation
-      targetCx = view.cx;
-      targetCy = view.cy;
+      // Convert to float for display (precision maintained in Decimal during animation)
+      targetCx = targetReDecimal.toNumber();
+      targetCy = targetImDecimal.toNumber();
     } else {
       // Standard precision for normal zoom levels
       const complex = pixelToComplex(mx, my);
