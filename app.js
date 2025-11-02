@@ -1952,28 +1952,8 @@
     'mini-mandelbrot': { cx: -0.7453, cy: 0.1127, scale: 0.000008, name: 'Mini Mandelbrot' },
     'misiurewicz': { cx: -0.1011, cy: 0.9563, scale: 0.0003, name: 'Misiurewicz Point' },
     'scepter': { cx: -1.2569, cy: 0.3803, scale: 0.0003, name: 'Scepter Valley' },
-    'satellite': { cx: -0.1565, cy: 1.0325, scale: 0.0001, name: 'Satellite' },
-    'test-quality': {
-      cx: -1.1957360754494566,
-      cy: 0.31150507791402227,
-      scale: 3.880779e-9,
-      name: 'Test Quality (e-9)',
-      centerRe: "-1.1957360754494566",
-      centerIm: "0.31150507791402227"
-    }
+    'satellite': { cx: -0.1565, cy: 1.0325, scale: 0.0001, name: 'Satellite' }
   };
-  
-  // Add The Final Frontier only on desktop (requires high iteration count)
-  if(!isMobileDevice){
-    presetLocations['final-frontier'] = { 
-      cx: -0.6701643319867839, 
-      cy: 0.31596038546507194, 
-      scale: 1.3332685139720305e-38, 
-      name: 'The Final Frontier (e-38)',
-      centerRe: "-0.67016433198678397994845461647470317075281182378517295338727305111964",
-      centerIm: "0.315960385465071955462877684565985094697084162998605619399575406798352"
-    };
-  }
 
   // Load custom locations from localStorage
   function loadCustomLocations(){
@@ -2050,6 +2030,10 @@
           centerRe = new Decimal(loc.centerRe);
           centerIm = new Decimal(loc.centerIm);
           view.scale = loc.scale;
+          
+          // Clear cached orbit so it recalculates with new coordinates
+          cachedOrbit = null;
+          
           syncCenterToView(); // Sync the Decimal values to view (or keep as fallback)
           updateMaxIter();
           updateZoomDisplay();
