@@ -1094,30 +1094,37 @@
     const initialScale = maxScale; // maxScale is set to initial "fit all" scale
     const magnification = initialScale / view.scale;
     
-    // Format zoom level with scientific notation for extreme zooms
+    // Superscript helper
+    const superscriptDigits = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻'};
+    const toSuperscript = (num) => num.toString().split('').map(c => superscriptDigits[c]).join('');
+    
+    // Format zoom level with superscript notation for extreme zooms
     let zoomText;
     if(magnification < 1000){
-      zoomText = magnification.toFixed(1) + '×';
+      zoomText = magnification.toFixed(1);
     } else if(magnification < 1e6){
-      zoomText = (magnification / 1000).toFixed(1) + 'K×';
+      zoomText = (magnification / 1000).toFixed(1) + 'K';
     } else if(magnification < 1e9){
-      zoomText = (magnification / 1e6).toFixed(1) + 'M×';
+      zoomText = (magnification / 1e6).toFixed(1) + 'M';
     } else if(magnification < 1e12){
-      zoomText = (magnification / 1e9).toFixed(1) + 'G×';
+      zoomText = (magnification / 1e9).toFixed(1) + 'G';
     } else {
-      // Use scientific notation for extreme zooms (trillion+)
-      zoomText = magnification.toExponential(2) + '×';
+      // Use superscript notation for extreme zooms (trillion+)
+      const expNotation = magnification.toExponential(1);
+      const [mantissa, exponent] = expNotation.split('e');
+      const exp = parseInt(exponent);
+      const superExp = toSuperscript(exp);
+      zoomText = `${mantissa}×10${superExp}`;
     }
     
-    zoomLevelSpan.textContent = zoomText;
+    zoomLevelSpan.innerHTML = zoomText;
     
     // Format scale with superscript notation (e.g., 1.3×10⁻³⁸)
     const expNotation = view.scale.toExponential(1);
     const [mantissa, exponent] = expNotation.split('e');
     const exp = parseInt(exponent);
-    // Convert exponent to superscript
-    const superscriptDigits = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻'};
-    const superExp = exp.toString().split('').map(c => superscriptDigits[c]).join('');
+    // Convert exponent to superscript using helper
+    const superExp = toSuperscript(exp);
     scaleValueSpan.innerHTML = `${mantissa}×10${superExp}`;
     
     // Show zoom info and set fade-out timer
