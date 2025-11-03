@@ -25,9 +25,6 @@
   const controlsOverlay = document.getElementById('controls-overlay');
   const closeControlsBtn = document.getElementById('close-controls-btn');
   const showControlsBtn = document.getElementById('show-controls-btn');
-  const mathOverlay = document.getElementById('math-overlay');
-  const closeMathBtn = document.getElementById('close-math-btn');
-  const showMathBtn = document.getElementById('show-math-btn');
   const implementationOverlay = document.getElementById('implementation-overlay');
   const closeImplementationBtn = document.getElementById('close-implementation-btn');
   const showImplementationBtn = document.getElementById('show-implementation-btn');
@@ -101,25 +98,6 @@
     }
   });
 
-  // Math overlay handlers
-  showMathBtn.addEventListener('click', function(){
-    mathOverlay.classList.remove('hidden');
-    // Close settings panel
-    settingsPanel.classList.add('hidden');
-    menuToggle.classList.remove('active');
-  });
-  
-  closeMathBtn.addEventListener('click', function(){
-    mathOverlay.classList.add('hidden');
-  });
-  
-  // Click overlay background to close
-  mathOverlay.addEventListener('click', function(e){
-    if(e.target === mathOverlay){
-      mathOverlay.classList.add('hidden');
-    }
-  });
-  
   // Implementation overlay handlers
   showImplementationBtn.addEventListener('click', function(){
     implementationOverlay.classList.remove('hidden');
