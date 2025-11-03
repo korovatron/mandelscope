@@ -279,11 +279,11 @@
 
       <h3>Colouring and Visualisation</h3>
       <p>
-        The beautiful colours you see in Mandelbrot images aren't part of the mathematical set itself — the Mandelbrot set is actually just black! 
+        The beautiful colours you see in Mandelbrot images aren't part of the mathematical set itself — the Mandelbrot set is typically shown as dark! 
         The colours represent <strong>how quickly</strong> points outside the set escape to infinity:
       </p>
       <ul>
-        <li><strong>Black pixels:</strong> Points in the set (never escape)</li>
+        <li><strong>Dark pixels:</strong> Points in the set (never escape)</li>
         <li><strong>Coloured pixels:</strong> Points outside the set — colour indicates how many iterations before escape</li>
         <li><strong>Lighter colours:</strong> Typically points that escape quickly (few iterations)</li>
         <li><strong>Darker colours:</strong> Points that take many iterations to escape</li>
@@ -364,9 +364,9 @@ FUNCTION drawMandelbrot(width, height, max_iterations)
             
             // Color the pixel
             IF iterations == max_iterations THEN
-                setPixel(x, y, BLACK)  // In the set
+                setPixel(x, y, DARK_COLOR)  // In the set
             ELSE
-                setPixel(x, y, WHITE)  // Not in the set
+                setPixel(x, y, LIGHT_COLOR)  // Not in the set
             END IF
         END FOR
     END FOR
@@ -383,7 +383,7 @@ END FUNCTION</div>
       <h2>Working Implementation</h2>
       <p>
         Here's a complete, minimal implementation in JavaScript using a 2D canvas. 
-        This code draws a monochrome Mandelbrot set with no additional features.
+        This code draws a simple two-color Mandelbrot set with no additional features.
       </p>
       
       <div class="canvas-container">
@@ -462,9 +462,9 @@ function drawMandelbrot() {
             
             // Set pixel color
             if (iterations === maxIterations) {
-                ctx.fillStyle = 'black';  // In the set
+                ctx.fillStyle = '#1e3a5f';  // In the set - dark blue
             } else {
-                ctx.fillStyle = 'white';  // Not in the set
+                ctx.fillStyle = '#8dd5e7';  // Not in the set - soft cyan
             }
             
             // Draw a 1×1 pixel rectangle at position (px, py)
@@ -491,8 +491,8 @@ drawMandelbrot();</textarea>
         <ul style="margin: 10px 0 0 0;">
           <li>Change <code>maxIterations</code> to 50 or 200 to see how detail changes</li>
           <li>Modify the viewing window (xMin, xMax, yMin, yMax) to zoom in</li>
-          <li>Change the colors: try <code>'red'</code>, <code>'blue'</code>, or <code>'#ff00ff'</code> instead of black/white</li>
-          <li>Add a third color for points that escape quickly: <code>if (iterations &lt; 10) ctx.fillStyle = 'gray';</code></li>
+          <li>Change the colors: try <code>'#ff5555'</code>, <code>'#88ff88'</code>, or experiment with different hex codes</li>
+          <li>Add a third color for points that escape quickly: <code>if (iterations &lt; 10) ctx.fillStyle = '#999';</code></li>
           <li>Make the canvas smaller (e.g., 300×225) to see it draw faster</li>
         </ul>
       </div>
@@ -502,15 +502,15 @@ drawMandelbrot();</textarea>
         In the image above, you should see:
       </p>
       <ul>
-        <li><strong>Black regions:</strong> Points that are IN the Mandelbrot set (never escaped)</li>
-        <li><strong>White regions:</strong> Points that are NOT in the set (escaped to infinity)</li>
-        <li><strong>The main cardioid:</strong> The large bulbous black shape in the center</li>
-        <li><strong>The circular bulb:</strong> The circular black region to the left of the cardioid</li>
+        <li><strong>Dark blue regions:</strong> Points that are IN the Mandelbrot set (never escaped)</li>
+        <li><strong>Cyan regions:</strong> Points that are NOT in the set (escaped to infinity)</li>
+        <li><strong>The main cardioid:</strong> The large bulbous dark shape in the center</li>
+        <li><strong>The circular bulb:</strong> The circular dark region to the left of the cardioid</li>
         <li><strong>Smaller bulbs:</strong> Tiny circular structures around the main shape</li>
       </ul>
       
       <div class="info-box">
-        <strong>Tip:</strong> The boundary between black and white is where the interesting fractal patterns emerge. 
+        <strong>Tip:</strong> The boundary between dark and light is where the interesting fractal patterns emerge. 
         In the main Mandelscope explorer, we use colors to show HOW QUICKLY points escape, revealing beautiful detail.
       </div>
 
@@ -547,7 +547,7 @@ drawMandelbrot();</textarea>
           <li>Change the viewing window (xMin, xMax, yMin, yMax) to zoom into different regions</li>
           <li>Increase maxIterations to 200 or 500 to see more detail (warning: will be slower!)</li>
           <li>Add grayscale coloring: map the iteration count to different shades of gray</li>
-          <li>Draw only the boundary: color pixels white only if they escape within a certain iteration range</li>
+          <li>Draw only the boundary: color pixels differently only if they escape within a certain iteration range</li>
         </ul>
       </div>
 
@@ -642,16 +642,16 @@ drawMandelbrot();</textarea>
                 
                 // Set pixel color (RGBA)
                 if (iterations === maxIterations) {
-                    // In the set - draw black
-                    pixels[pixelIndex] = 0;       // Red
-                    pixels[pixelIndex + 1] = 0;   // Green
-                    pixels[pixelIndex + 2] = 0;   // Blue
+                    // In the set - draw dark blue
+                    pixels[pixelIndex] = 30;      // Red
+                    pixels[pixelIndex + 1] = 58;  // Green
+                    pixels[pixelIndex + 2] = 95;  // Blue
                     pixels[pixelIndex + 3] = 255; // Alpha
                 } else {
-                    // Not in the set - draw white
-                    pixels[pixelIndex] = 255;
-                    pixels[pixelIndex + 1] = 255;
-                    pixels[pixelIndex + 2] = 255;
+                    // Not in the set - draw soft cyan
+                    pixels[pixelIndex] = 141;
+                    pixels[pixelIndex + 1] = 213;
+                    pixels[pixelIndex + 2] = 231;
                     pixels[pixelIndex + 3] = 255;
                 }
             }
