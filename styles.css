@@ -279,4 +279,5 @@ button:hover{background:rgba(102,126,234,0.35);border-color:rgba(102,126,234,0.6
   .title-buttons{gap:8px;margin-bottom:8px}
   .start-button{padding:8px 16px;font-size:0.9rem}
   .hint{font-size:0.75rem;margin-top:8px}
+  .settings-panel{max-height:calc(100vh - 60px);overflow-y:auto;top:calc(env(safe-area-inset-top) + 10px)}
 }
