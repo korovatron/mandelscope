@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  
+  <title>Mandelscope - Educational Guide: Programming the Mandelbrot Set</title>
+  <meta name="description" content="Learn how to program the Mandelbrot set from scratch. Step-by-step guide with pseudocode and working implementation for A-level Maths and Computer Science students." />
+  
+  <link rel="icon" type="image/png" href="iconTrans.png">
+  <link rel="stylesheet" href="styles.css">
+  
+  <style>
+    html, body {
+      height: auto !important;
+      overflow: visible !important;
+      overflow-y: auto !important;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .education-page {
+      background: #100C5C;
+      color: #E8F4FD;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .education-content {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .education-content h1 {
+      color: #8af;
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    
+    .education-content h2 {
+      color: #8af;
+      font-size: 1.8rem;
+      margin-top: 40px;
+      margin-bottom: 15px;
+      border-bottom: 2px solid rgba(136, 170, 255, 0.3);
+      padding-bottom: 10px;
+    }
+    
+    .education-content h3 {
+      color: #f8a;
+      font-size: 1.3rem;
+      margin-top: 30px;
+      margin-bottom: 10px;
+    }
+    
+    .education-content p {
+      line-height: 1.8;
+      margin-bottom: 15px;
+      color: #B0C4DE;
+    }
+    
+    .education-content ul, .education-content ol {
+      line-height: 2;
+      margin-bottom: 20px;
+      padding-left: 30px;
+      color: #B0C4DE;
+    }
+    
+    .education-content li {
+      margin-bottom: 10px;
+    }
+    
+    .math-formula {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 4px solid #8af;
+      margin: 20px 0;
+      font-family: 'Times New Roman', serif;
+      font-size: 1.2rem;
+      text-align: center;
+    }
+    
+    .pseudocode {
+      background: rgba(0, 0, 0, 0.5);
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 4px solid #f8a;
+      margin: 20px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      white-space: pre;
+      overflow-x: auto;
+      color: #E8F4FD;
+    }
+    
+    #code-editor {
+      width: 100%;
+      min-height: 500px;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 20px;
+      border-radius: 8px;
+      border: 2px solid #4ade80;
+      margin: 20px 0 0 0;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 20px;
+      color: #E8F4FD;
+      resize: vertical;
+      box-sizing: border-box;
+      tab-size: 4;
+    }
+    
+    #code-editor:focus {
+      outline: none;
+      border-color: #4ade80;
+      box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.2);
+    }
+    
+    #code-editor:focus {
+      outline: none;
+      border-color: #4ade80;
+      box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.2);
+    }
+    
+    .code-block {
+      background: rgba(0, 0, 0, 0.5);
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 4px solid #4ade80;
+      margin: 20px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      white-space: pre;
+      overflow-x: auto;
+      color: #E8F4FD;
+    }
+    
+    .canvas-container {
+      text-align: center;
+      margin: 30px 0;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 20px;
+      border-radius: 8px;
+    }
+    
+    #mandelbrot-canvas {
+      border: 2px solid #8af;
+      border-radius: 4px;
+      max-width: 100%;
+      height: auto;
+    }
+    
+    .info-box {
+      background: rgba(136, 170, 255, 0.1);
+      border: 1px solid rgba(136, 170, 255, 0.3);
+      border-radius: 8px;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    
+    .info-box strong {
+      color: #8af;
+    }
+    
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #8af;
+      text-decoration: none;
+      font-size: 1.1rem;
+    }
+    
+    .back-link:hover {
+      color: #adf;
+      text-decoration: underline;
+    }
+    
+    .key-concept {
+      background: rgba(248, 170, 170, 0.1);
+      border: 1px solid rgba(248, 170, 170, 0.3);
+      border-radius: 8px;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    
+    .key-concept strong {
+      color: #f8a;
+    }
+  </style>
+</head>
+<body>
+  <div class="education-page">
+    <div class="education-content">
+      <a href="index.html" class="back-link">← Back to Mandelscope</a>
+      
+      <h1>Understanding and Programming the Mandelbrot Set</h1>
+      <p style="text-align: center; font-size: 1.1rem; color: #aaa; margin-bottom: 40px;">
+        Mathematical explanation and step-by-step implementation guide
+      </p>
+
+      <h2>What is the Mandelbrot Set?</h2>
+      <p>
+        The Mandelbrot set is a mathematical set of complex numbers that produces beautiful fractal patterns when visualised. 
+        It was discovered by Benoit Mandelbrot in 1980 and has become one of the most famous examples of mathematical beauty.
+      </p>
+      
+      <p>
+        The set is defined by a surprisingly simple iterative formula applied to complex numbers, yet it produces infinitely complex patterns. 
+        What makes it special is that you can zoom into the boundary forever and keep finding new intricate structures at every scale.
+      </p>
+
+      <h2>The Mathematics</h2>
+      
+      <h3>Complex Numbers Review</h3>
+      <p>
+        Complex numbers have the form <strong>a + bi</strong>, where:
+      </p>
+      <ul>
+        <li><strong>a</strong> is the real part (horizontal position)</li>
+        <li><strong>b</strong> is the imaginary part (vertical position)</li>
+        <li><strong>i</strong> is the imaginary unit where i² = -1</li>
+      </ul>
+      
+      <p>
+        To multiply complex numbers: <strong>(a + bi)(c + di) = (ac - bd) + (ad + bc)i</strong>
+      </p>
+
+      <h3>The Mandelbrot Formula</h3>
+      <p>
+        For each complex number <strong>c</strong>, we test whether it belongs to the Mandelbrot set by repeatedly applying this formula:
+      </p>
+      
+      <div class="math-formula">
+        z<sub>n+1</sub> = z<sub>n</sub>² + c
+      </div>
+      
+      <p>Starting with <strong>z₀ = 0</strong>, we calculate:</p>
+      <ul>
+        <li>z₁ = z₀² + c = 0² + c = c</li>
+        <li>z₂ = z₁² + c = c² + c</li>
+        <li>z₃ = z₂² + c = (c² + c)² + c</li>
+        <li>and so on...</li>
+      </ul>
+
+      <h3>The Membership Test</h3>
+      <div class="key-concept">
+        <strong>Key Concept:</strong> A complex number <strong>c</strong> is in the Mandelbrot set if the sequence stays bounded (doesn't "escape to infinity") as we iterate forever.
+      </div>
+      
+      <p>
+        In practice, we use two rules to decide if a number is in the set:
+      </p>
+      <ol>
+        <li><strong>Escape condition:</strong> If |z| &gt; 2 at any point, the sequence will definitely escape to infinity. The number is NOT in the set.</li>
+        <li><strong>Iteration limit:</strong> If we've done many iterations (e.g., 100) and |z| is still ≤ 2, we assume the number IS in the set.</li>
+      </ol>
+      
+      <div class="info-box">
+        <strong>Note:</strong> The magnitude |z| of a complex number z = a + bi is calculated as √(a² + b²)
+      </div>
+
+      <h3>Worked Example</h3>
+      <p>Let's test whether <strong>c = 0.3 + 0.5i</strong> is in the Mandelbrot set:</p>
+      <ul>
+        <li><strong>z₀</strong> = 0</li>
+        <li><strong>z₁</strong> = 0² + (0.3 + 0.5i) = 0.3 + 0.5i</li>
+        <li><strong>z₂</strong> = (0.3 + 0.5i)² + (0.3 + 0.5i) = −0.16 + 0.3i + 0.3 + 0.5i = 0.14 + 0.8i</li>
+        <li><strong>z₃</strong> = (0.14 + 0.8i)² + (0.3 + 0.5i) = −0.6196 + 0.224i + 0.3 + 0.5i = −0.3196 + 0.724i</li>
+        <li>Continue iterating...</li>
+      </ul>
+      <p>
+        For this value, |z| remains less than 2 throughout many iterations, so <strong>c = 0.3 + 0.5i</strong> is in the Mandelbrot set.
+      </p>
+
+      <h3>Colouring and Visualisation</h3>
+      <p>
+        The beautiful colours you see in Mandelbrot images aren't part of the mathematical set itself — the Mandelbrot set is actually just black! 
+        The colours represent <strong>how quickly</strong> points outside the set escape to infinity:
+      </p>
+      <ul>
+        <li><strong>Black pixels:</strong> Points in the set (never escape)</li>
+        <li><strong>Coloured pixels:</strong> Points outside the set — colour indicates how many iterations before escape</li>
+        <li><strong>Lighter colours:</strong> Typically points that escape quickly (few iterations)</li>
+        <li><strong>Darker colours:</strong> Points that take many iterations to escape</li>
+      </ul>
+      <p>
+        The main Mandelscope explorer uses "Smooth Periodic Wave Colouring" which creates fluid rainbow patterns by using 
+        the final iteration count and the magnitude of z to generate smooth, continuous colour transitions.
+      </p>
+
+      <h3>Why Complex Numbers?</h3>
+      <p>
+        Complex numbers are essential because they give us a 2D space to explore. The real part of <strong>c</strong> corresponds 
+        to the x-axis (horizontal position), and the imaginary part corresponds to the y-axis (vertical position). This allows us to 
+        visualise the set as an image where each pixel represents testing a different complex number.
+      </p>
+
+      <h3>Connection to Julia Sets</h3>
+      <p>
+        Julia sets are closely related to the Mandelbrot set: instead of fixing z₀ = 0 and varying <strong>c</strong>, we fix 
+        <strong>c</strong> to a specific value and vary z₀. Each point in the Mandelbrot set corresponds to a different Julia set. 
+        Points inside the Mandelbrot set produce connected Julia sets, while points outside produce disconnected "dust" Julia sets.
+      </p>
+      <p>
+        You can explore Julia sets in the main Mandelscope application by clicking on any point in the Mandelbrot view!
+      </p>
+
+      <h2>The Algorithm</h2>
+      
+      <h3>Pseudocode</h3>
+      <p>Here's the algorithm in language-independent pseudocode:</p>
+      
+      <div class="pseudocode">FUNCTION mandelbrot(c_real, c_imag, max_iterations)
+    // c_real: real part of c
+    // c_imag: imaginary part of c
+    // max_iterations: how many times to iterate before giving up
+    
+    z_real = 0
+    z_imag = 0
+    
+    FOR iteration FROM 0 TO max_iterations
+        // Calculate magnitude squared: |z|²
+        magnitude_squared = z_real * z_real + z_imag * z_imag
+        
+        // Check if escaped (using |z|² > 4 instead of |z| > 2 to avoid sqrt)
+        IF magnitude_squared > 4 THEN
+            RETURN iteration  // Escaped after 'iteration' steps
+        END IF
+        
+        // Calculate z² = (z_real + z_imag*i)²
+        // Using: (a + bi)² = (a² - b²) + (2ab)i
+        new_real = z_real * z_real - z_imag * z_imag
+        new_imag = 2 * z_real * z_imag
+        
+        // Add c to get z² + c
+        z_real = new_real + c_real
+        z_imag = new_imag + c_imag
+    END FOR
+    
+    RETURN max_iterations  // Didn't escape - probably in the set
+END FUNCTION
+
+
+FUNCTION drawMandelbrot(width, height, max_iterations)
+    // Define the region of the complex plane to view
+    x_min = -2.5
+    x_max = 1.0
+    y_min = -1.25
+    y_max = 1.25
+    
+    FOR each pixel row y FROM 0 TO height
+        FOR each pixel column x FROM 0 TO width
+            // Map pixel coordinates to complex plane
+            c_real = x_min + (x / width) * (x_max - x_min)
+            c_imag = y_min + (y / height) * (y_max - y_min)
+            
+            // Test if this point is in the Mandelbrot set
+            iterations = mandelbrot(c_real, c_imag, max_iterations)
+            
+            // Color the pixel
+            IF iterations == max_iterations THEN
+                setPixel(x, y, BLACK)  // In the set
+            ELSE
+                setPixel(x, y, WHITE)  // Not in the set
+            END IF
+        END FOR
+    END FOR
+END FUNCTION</div>
+
+      <h3>Key Implementation Details</h3>
+      <ul>
+        <li><strong>Coordinate mapping:</strong> We map pixel coordinates (0 to width/height) to complex plane coordinates (e.g., -2.5 to 1.0)</li>
+        <li><strong>Optimization:</strong> We check |z|² &gt; 4 instead of |z| &gt; 2 to avoid calculating square roots (since (√x)² = x, and 2² = 4)</li>
+        <li><strong>Iteration count:</strong> Typical values are 50-500. Higher values show more detail but take longer to compute</li>
+        <li><strong>The region:</strong> The standard view shows real values from -2.5 to 1.0, imaginary values from -1.25 to 1.25</li>
+      </ul>
+
+      <h2>Working Implementation</h2>
+      <p>
+        Here's a complete, minimal implementation in JavaScript using a 2D canvas. 
+        This code draws a monochrome Mandelbrot set with no additional features.
+      </p>
+      
+      <div class="canvas-container">
+        <canvas id="mandelbrot-canvas" width="600" height="450"></canvas>
+        <p style="margin-top: 15px; color: #aaa;">
+          600×450 pixels, 100 iterations per point
+        </p>
+      </div>
+
+      <h3>JavaScript Implementation</h3>
+      <p style="color: #8af; margin-bottom: 10px;">
+        <strong>✏️ Editable Code:</strong> Try modifying the code below and click "Run Code" to see your changes!
+      </p>
+      <textarea id="code-editor" spellcheck="false">// Get the canvas and its 2D rendering context
+const canvas = document.getElementById('mandelbrot-canvas');
+const ctx = canvas.getContext('2d');
+
+// Canvas dimensions
+const width = canvas.width;
+const height = canvas.height;
+
+// Mandelbrot parameters
+const maxIterations = 100;
+
+// Complex plane viewing window
+const xMin = -2.5;
+const xMax = 1.0;
+const yMin = -1.25;
+const yMax = 1.25;
+
+/**
+ * Test if a complex number c is in the Mandelbrot set
+ * @param {number} cReal - Real part of c
+ * @param {number} cImag - Imaginary part of c
+ * @param {number} maxIter - Maximum iterations before giving up
+ * @returns {number} - Number of iterations before escape (or maxIter if didn't escape)
+ */
+function mandelbrot(cReal, cImag, maxIter) {
+    let zReal = 0;
+    let zImag = 0;
+    
+    for (let i = 0; i < maxIter; i++) {
+        // Calculate |z|²
+        const magnitudeSquared = zReal * zReal + zImag * zImag;
+        
+        // Check escape condition
+        if (magnitudeSquared > 4) {
+            return i; // Escaped after i iterations
+        }
+        
+        // Calculate z² = (zReal + zImag*i)²
+        const newReal = zReal * zReal - zImag * zImag;
+        const newImag = 2 * zReal * zImag;
+        
+        // Calculate z² + c
+        zReal = newReal + cReal;
+        zImag = newImag + cImag;
+    }
+    
+    return maxIter; // Didn't escape - in the set
+}
+
+/**
+ * Draw the Mandelbrot set to the canvas
+ */
+function drawMandelbrot() {
+    // Loop through every pixel
+    for (let py = 0; py < height; py++) {
+        for (let px = 0; px < width; px++) {
+            // Map pixel coordinate to complex plane
+            const cReal = xMin + (px / width) * (xMax - xMin);
+            const cImag = yMin + (py / height) * (yMax - yMin);
+            
+            // Test if this point is in the Mandelbrot set
+            const iterations = mandelbrot(cReal, cImag, maxIterations);
+            
+            // Set pixel color
+            if (iterations === maxIterations) {
+                ctx.fillStyle = 'black';  // In the set
+            } else {
+                ctx.fillStyle = 'white';  // Not in the set
+            }
+            
+            // Draw a 1×1 pixel rectangle at position (px, py)
+            ctx.fillRect(px, py, 1, 1);
+        }
+    }
+}
+
+// Draw the Mandelbrot set
+drawMandelbrot();</textarea>
+      
+      <div style="margin: 15px 0; display: flex; gap: 10px; align-items: center;">
+        <button id="run-button" style="padding: 10px 20px; background: #4ade80; color: #000; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 1rem;">
+          ▶ Run Code
+        </button>
+        <button id="reset-button" style="padding: 10px 20px; background: #f59e0b; color: #000; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 1rem;">
+          ↺ Reset to Original
+        </button>
+        <span id="status-message" style="color: #4ade80; margin-left: 10px;"></span>
+      </div>
+      
+      <div class="info-box" style="background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.3);">
+        <strong>💡 Try These Experiments:</strong>
+        <ul style="margin: 10px 0 0 0;">
+          <li>Change <code>maxIterations</code> to 50 or 200 to see how detail changes</li>
+          <li>Modify the viewing window (xMin, xMax, yMin, yMax) to zoom in</li>
+          <li>Change the colors: try <code>'red'</code>, <code>'blue'</code>, or <code>'#ff00ff'</code> instead of black/white</li>
+          <li>Add a third color for points that escape quickly: <code>if (iterations &lt; 10) ctx.fillStyle = 'gray';</code></li>
+          <li>Make the canvas smaller (e.g., 300×225) to see it draw faster</li>
+        </ul>
+      </div>
+
+      <h2>Understanding the Output</h2>
+      <p>
+        In the image above, you should see:
+      </p>
+      <ul>
+        <li><strong>Black regions:</strong> Points that are IN the Mandelbrot set (never escaped)</li>
+        <li><strong>White regions:</strong> Points that are NOT in the set (escaped to infinity)</li>
+        <li><strong>The main cardioid:</strong> The large bulbous black shape in the center</li>
+        <li><strong>The circular bulb:</strong> The circular black region to the left of the cardioid</li>
+        <li><strong>Smaller bulbs:</strong> Tiny circular structures around the main shape</li>
+      </ul>
+      
+      <div class="info-box">
+        <strong>Tip:</strong> The boundary between black and white is where the interesting fractal patterns emerge. 
+        In the main Mandelscope explorer, we use colors to show HOW QUICKLY points escape, revealing beautiful detail.
+      </div>
+
+      <h2>Extending the Basic Implementation</h2>
+      <p>
+        Once you understand this basic implementation, you can add many enhancements:
+      </p>
+      <ul>
+        <li><strong>Smooth coloring:</strong> Use the iteration count to assign colors, creating the rainbow patterns you see in the main explorer</li>
+        <li><strong>Zooming:</strong> Allow users to zoom into regions by adjusting xMin, xMax, yMin, yMax</li>
+        <li><strong>Panning:</strong> Let users drag to move around the complex plane</li>
+        <li><strong>Higher precision:</strong> For extreme zoom levels, you need arbitrary-precision arithmetic (like the main explorer uses)</li>
+        <li><strong>GPU acceleration:</strong> Move the calculation to the GPU using WebGL shaders for real-time performance</li>
+        <li><strong>Julia sets:</strong> Instead of fixing z₀=0 and varying c, fix c and vary z₀ to generate Julia sets</li>
+      </ul>
+
+      <h2>Computational Complexity</h2>
+      <p>
+        For an image of W×H pixels with maximum M iterations per point:
+      </p>
+      <ul>
+        <li><strong>Time complexity:</strong> O(W × H × M) - we test every pixel up to M times</li>
+        <li><strong>Space complexity:</strong> O(W × H) - we need to store the image data</li>
+      </ul>
+      <p>
+        For a 600×450 image with 100 iterations, that's up to <strong>27 million operations</strong>! 
+        This is why the main Mandelscope explorer uses GPU acceleration - graphics cards can perform these calculations in parallel across thousands of cores.
+      </p>
+
+      <h2>Try It Yourself</h2>
+      <div class="key-concept">
+        <strong>Exercise:</strong> Try modifying the code above to:
+        <ul style="margin-top: 10px;">
+          <li>Change the viewing window (xMin, xMax, yMin, yMax) to zoom into different regions</li>
+          <li>Increase maxIterations to 200 or 500 to see more detail (warning: will be slower!)</li>
+          <li>Add grayscale coloring: map the iteration count to different shades of gray</li>
+          <li>Draw only the boundary: color pixels white only if they escape within a certain iteration range</li>
+        </ul>
+      </div>
+
+      <h2>Further Learning</h2>
+      <p>
+        <strong>Next steps in your Mandelbrot journey:</strong>
+      </p>
+      <ul>
+        <li>Research the <strong>escape time algorithm</strong> for smooth coloring</li>
+        <li>Learn about <strong>complex dynamics</strong> and how the formula relates to iteration stability</li>
+        <li>Explore <strong>Julia sets</strong> - the "siblings" of the Mandelbrot set</li>
+        <li>Study <strong>perturbation theory</strong> to understand deep zooming (used in the main explorer)</li>
+        <li>Investigate other fractals: Burning Ship, Newton fractals, Lyapunov fractals</li>
+      </ul>
+
+      <p style="margin-top: 40px; text-align: center;">
+        <a href="index.html" class="back-link">← Back to Mandelscope</a>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // Get the canvas and its 2D rendering context
+    const canvas = document.getElementById('mandelbrot-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Canvas dimensions
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // Mandelbrot parameters
+    const maxIterations = 100;
+
+    // Complex plane viewing window
+    const xMin = -2.5;
+    const xMax = 1.0;
+    const yMin = -1.25;
+    const yMax = 1.25;
+
+    /**
+     * Test if a complex number c is in the Mandelbrot set
+     * @param {number} cReal - Real part of c
+     * @param {number} cImag - Imaginary part of c
+     * @param {number} maxIter - Maximum iterations before giving up
+     * @returns {number} - Number of iterations before escape (or maxIter if didn't escape)
+     */
+    function mandelbrot(cReal, cImag, maxIter) {
+        let zReal = 0;
+        let zImag = 0;
+        
+        for (let i = 0; i < maxIter; i++) {
+            // Calculate |z|²
+            const magnitudeSquared = zReal * zReal + zImag * zImag;
+            
+            // Check escape condition
+            if (magnitudeSquared > 4) {
+                return i; // Escaped after i iterations
+            }
+            
+            // Calculate z² = (zReal + zImag*i)²
+            const newReal = zReal * zReal - zImag * zImag;
+            const newImag = 2 * zReal * zImag;
+            
+            // Calculate z² + c
+            zReal = newReal + cReal;
+            zImag = newImag + cImag;
+        }
+        
+        return maxIter; // Didn't escape - in the set
+    }
+
+    /**
+     * Draw the Mandelbrot set to the canvas
+     */
+    function drawMandelbrot() {
+        // Create an image buffer to manipulate pixels
+        const imageData = ctx.createImageData(width, height);
+        const pixels = imageData.data;
+        
+        // Loop through every pixel
+        for (let py = 0; py < height; py++) {
+            for (let px = 0; px < width; px++) {
+                // Map pixel coordinate to complex plane
+                const cReal = xMin + (px / width) * (xMax - xMin);
+                const cImag = yMin + (py / height) * (yMax - yMin);
+                
+                // Test if this point is in the Mandelbrot set
+                const iterations = mandelbrot(cReal, cImag, maxIterations);
+                
+                // Calculate pixel index in the image data array
+                const pixelIndex = (py * width + px) * 4;
+                
+                // Set pixel color (RGBA)
+                if (iterations === maxIterations) {
+                    // In the set - draw black
+                    pixels[pixelIndex] = 0;       // Red
+                    pixels[pixelIndex + 1] = 0;   // Green
+                    pixels[pixelIndex + 2] = 0;   // Blue
+                    pixels[pixelIndex + 3] = 255; // Alpha
+                } else {
+                    // Not in the set - draw white
+                    pixels[pixelIndex] = 255;
+                    pixels[pixelIndex + 1] = 255;
+                    pixels[pixelIndex + 2] = 255;
+                    pixels[pixelIndex + 3] = 255;
+                }
+            }
+        }
+        
+        // Draw the image buffer to the canvas
+        ctx.putImageData(imageData, 0, 0);
+    }
+
+    // Draw the Mandelbrot set when page loads
+    drawMandelbrot();
+    
+    // Store the original code for reset functionality
+    const originalCode = document.getElementById('code-editor').value;
+    
+    // Run button functionality
+    document.getElementById('run-button').addEventListener('click', function() {
+        const code = document.getElementById('code-editor').value;
+        const statusMessage = document.getElementById('status-message');
+        
+        try {
+            // Clear the canvas first
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Execute the user's code
+            eval(code);
+            
+            statusMessage.textContent = '✓ Code executed successfully!';
+            statusMessage.style.color = '#4ade80';
+            
+            // Clear status after 3 seconds
+            setTimeout(() => {
+                statusMessage.textContent = '';
+            }, 3000);
+        } catch (error) {
+            statusMessage.textContent = '✗ Error: ' + error.message;
+            statusMessage.style.color = '#f87171';
+            console.error('Code execution error:', error);
+        }
+    });
+    
+    // Reset button functionality
+    document.getElementById('reset-button').addEventListener('click', function() {
+        document.getElementById('code-editor').value = originalCode;
+        const statusMessage = document.getElementById('status-message');
+        statusMessage.textContent = '↺ Code reset to original';
+        statusMessage.style.color = '#f59e0b';
+        
+        // Clear status after 2 seconds
+        setTimeout(() => {
+            statusMessage.textContent = '';
+        }, 2000);
+        
+        // Re-run the original code
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        eval(originalCode);
+    });
+  </script>
+</body>
+</html>
