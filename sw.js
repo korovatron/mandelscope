@@ -1,10 +1,11 @@
-const CACHE_NAME = 'mandelscope-v1.0.2';
+const CACHE_NAME = 'mandelscope-v1.0.3';
 const urlsToCache = [
   './',
   './index.html',
+  './algorithm.html',
   './styles.css',
   './app.js',
-  './logo.svg',
+  './manifest.json',
   './titleImage.png',
   './iconSolid.png',
   './iconTrans.png',
