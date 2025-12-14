@@ -81,6 +81,11 @@
         if(safeTopPx > 0) {
           logDebug('compensate');
           viewportHeight += safeTopPx;
+          // Set compensation status in debug overlay
+          setTimeout(() => {
+            const debugComp = document.getElementById('debug-comp');
+            if(debugComp) debugComp.textContent = 'YES +' + safeTopPx + 'px';
+          }, 0);
         }
       }
     }
