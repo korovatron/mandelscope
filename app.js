@@ -1,12 +1,38 @@
 (function(){
-  // Fix for iOS PWA viewport height - Calculate actual viewport height
+  // Comprehensive fix for iOS PWA viewport height and safe area inset race conditions
   function setActualVH(){
+    // Force layout recalculation to ensure CSS changes are applied
+    document.body.offsetHeight;
+    
     const vh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty('--actual-vh', `${window.innerHeight}px`);
   }
+  
+  // Initial calculation
   setActualVH();
+  
+  // Multiple delayed recalculations to catch iOS safe area insets whenever they become available
+  // iOS may not have calculated safe areas immediately on load
+  setTimeout(setActualVH, 50);
+  setTimeout(setActualVH, 150);
+  setTimeout(setActualVH, 300);
+  
+  // Standard event listeners
   window.addEventListener('resize', setActualVH);
   window.addEventListener('orientationchange', setActualVH);
+  
+  // visualViewport API for better PWA support (more reliable than window resize on iOS)
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize', setActualVH);
+  }
+  
+  // Handle app switching / visibility changes (catches cases when returning to app)
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden){
+      setActualVH();
+      setTimeout(setActualVH, 50);
+    }
+  });
 
   // Register service worker for PWA
   if('serviceWorker' in navigator){
