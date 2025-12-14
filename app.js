@@ -17,8 +17,19 @@
       const debugSafeBot = document.getElementById('debug-safe-bot');
       const debugEvents = document.getElementById('debug-events');
       
+      const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+      
       if(debugTime) debugTime.textContent = elapsed + 'ms [' + label + ']';
       if(debugWindow) debugWindow.textContent = window.innerWidth + 'x' + window.innerHeight;
+      
+      const debugScreen = document.getElementById('debug-screen');
+      const debugDiff = document.getElementById('debug-diff');
+      const debugPwa = document.getElementById('debug-pwa');
+      
+      if(debugScreen && window.screen) debugScreen.textContent = window.screen.width + 'x' + window.screen.height;
+      if(debugDiff && window.screen) debugDiff.textContent = (window.screen.height - window.innerHeight) + 'px';
+      if(debugPwa) debugPwa.textContent = isPWA ? 'YES' : 'NO';
+      
       if(debugVhVar) debugVhVar.textContent = getComputedStyle(document.documentElement).getPropertyValue('--actual-vh');
       if(debugBody) debugBody.textContent = document.body.offsetWidth + 'x' + document.body.offsetHeight;
       if(debugSafeTop) debugSafeTop.textContent = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-top') || '0px';
