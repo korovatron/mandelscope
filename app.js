@@ -2844,8 +2844,6 @@
     juliaInfo.classList.remove('hidden');
     juliaSetButtonWrap.classList.add('hidden'); // Hide Julia button in Julia mode
     backToMandelbrotBtn.classList.remove('hidden');
-    // Force orange gradient background (prevent blue from appearing)
-    backToMandelbrotBtn.style.background = 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)';
     updateJuliaDisplay();
     
     // Start from extremely zoomed out view
@@ -2869,8 +2867,6 @@
     juliaInfo.classList.add('hidden');
     juliaSetButtonWrap.classList.remove('hidden'); // Show Julia button in Mandelbrot mode
     backToMandelbrotBtn.classList.add('hidden');
-    // Force orange gradient background (prevent blue from appearing)
-    showJuliaBtn.style.background = 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)';
     
     // Restore saved Mandelbrot view if available
     if(savedMandelbrotView){
