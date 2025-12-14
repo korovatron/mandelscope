@@ -1,4 +1,42 @@
 (function(){
+  // Debug overlay logging
+  const debugStartTime = Date.now();
+  let debugEventCount = 0;
+  
+  function logDebug(label) {
+    const elapsed = Date.now() - debugStartTime;
+    debugEventCount++;
+    
+    setTimeout(() => {
+      const debugTime = document.getElementById('debug-time');
+      const debugWindow = document.getElementById('debug-window');
+      const debugVhVar = document.getElementById('debug-vh-var');
+      const debugCanvasCss = document.getElementById('debug-canvas-css');
+      const debugBody = document.getElementById('debug-body');
+      const debugSafeTop = document.getElementById('debug-safe-top');
+      const debugSafeBot = document.getElementById('debug-safe-bot');
+      const debugEvents = document.getElementById('debug-events');
+      
+      if(debugTime) debugTime.textContent = elapsed + 'ms [' + label + ']';
+      if(debugWindow) debugWindow.textContent = window.innerWidth + 'x' + window.innerHeight;
+      if(debugVhVar) debugVhVar.textContent = getComputedStyle(document.documentElement).getPropertyValue('--actual-vh');
+      if(debugBody) debugBody.textContent = document.body.offsetWidth + 'x' + document.body.offsetHeight;
+      if(debugSafeTop) debugSafeTop.textContent = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-top') || '0px';
+      if(debugSafeBot) debugSafeBot.textContent = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-bottom') || '0px';
+      if(debugEvents) debugEvents.textContent = debugEventCount;
+      
+      const canvas = document.getElementById('canvas-gl');
+      if(canvas && debugCanvasCss) {
+        debugCanvasCss.textContent = canvas.style.width + ' x ' + canvas.style.height;
+      }
+      
+      const debugCanvasSize = document.getElementById('debug-canvas-size');
+      if(canvas && debugCanvasSize) {
+        debugCanvasSize.textContent = canvas.width + 'x' + canvas.height;
+      }
+    }, 0);
+  }
+  
   // Comprehensive fix for iOS PWA viewport height and safe area inset race conditions
   function setActualVH(){
     // Force layout recalculation to ensure CSS changes are applied
@@ -6,6 +44,7 @@
     
     const vh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty('--actual-vh', `${window.innerHeight}px`);
+    logDebug('setVH');
   }
   
   // Initial calculation
@@ -20,6 +59,7 @@
   // Force layout recalculation after viewport settles (fixes iOS WebGL bottom border issue)
   // Trigger a resize event to force canvas to recalculate dimensions with proper viewport height
   setTimeout(() => {
+    logDebug('resizeEvt');
     window.dispatchEvent(new Event('resize'));
   }, 350);
   

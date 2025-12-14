@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mandelscope-version-1.7';
+const CACHE_NAME = 'mandelscope-version-1.8';
 const urlsToCache = [
   './',
   './index.html',
