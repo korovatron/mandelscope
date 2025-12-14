@@ -94,7 +94,19 @@
               const debugComp = document.getElementById('debug-comp');
               if(debugComp) debugComp.textContent = 'YES +' + safeTopPx + 'px';
             }, 0);
+          } else {
+            // Portrait but no safe area to compensate
+            setTimeout(() => {
+              const debugComp = document.getElementById('debug-comp');
+              if(debugComp) debugComp.textContent = 'NO (no safe area)';
+            }, 0);
           }
+        } else {
+          // Portrait but difference too small - no compensation needed
+          setTimeout(() => {
+            const debugComp = document.getElementById('debug-comp');
+            if(debugComp) debugComp.textContent = 'NO (diff: ' + Math.round(difference) + 'px)';
+          }, 0);
         }
       } else {
         // Landscape mode - no compensation needed
