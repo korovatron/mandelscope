@@ -72,6 +72,7 @@
       const isPortrait = window.innerHeight > window.innerWidth;
       
       if(isPortrait) {
+        // In portrait: compare with portrait screen dimension
         // screen.height/width don't rotate, so pick the larger value (portrait height)
         const screenPortraitHeight = Math.max(window.screen.height, window.screen.width);
         const difference = screenPortraitHeight - viewportHeight;
@@ -95,6 +96,12 @@
             }, 0);
           }
         }
+      } else {
+        // Landscape mode - no compensation needed
+        setTimeout(() => {
+          const debugComp = document.getElementById('debug-comp');
+          if(debugComp) debugComp.textContent = 'LANDSCAPE (skip)';
+        }, 0);
       }
     }
     
