@@ -69,10 +69,10 @@
     
     if(isPWA && window.screen && window.screen.height) {
       const difference = window.screen.height - viewportHeight;
-      // In PWA mode, if there's ANY significant difference (>40px), it's likely the iOS bug
-      // Normal PWA should have minimal difference (just safe-area-bottom ~34px)
-      // If difference matches safe-area-top, iOS subtracted it incorrectly
-      if(difference > 40) {
+      // In PWA mode, detect iOS bug where safe-area-top is incorrectly subtracted from innerHeight
+      // iPhone: diff ~59px, iPad Pro: diff ~32px, Normal: diff should be ~0-5px
+      // Use threshold of 15px to catch both iPhone and iPad cases without false positives
+      if(difference > 15) {
         // Try to get safe-area-top from CSS
         const computedStyle = getComputedStyle(document.documentElement);
         const safeTop = computedStyle.getPropertyValue('--safe-area-top');
