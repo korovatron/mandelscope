@@ -72,7 +72,10 @@
       const isPortrait = window.innerHeight > window.innerWidth;
       
       if(isPortrait) {
-        const difference = window.screen.height - viewportHeight;
+        // screen.height/width don't rotate, so pick the larger value (portrait height)
+        const screenPortraitHeight = Math.max(window.screen.height, window.screen.width);
+        const difference = screenPortraitHeight - viewportHeight;
+        
         // In PWA mode, detect iOS bug where safe-area-top is incorrectly subtracted from innerHeight
         // iPhone: diff ~59px, iPad Pro: diff ~32px, Normal: diff should be ~0-5px
         // Use threshold of 15px to catch both iPhone and iPad cases without false positives
