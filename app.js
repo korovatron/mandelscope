@@ -141,6 +141,9 @@
   function dismissTitleScreen(){
     appStarted = true; // Enable rendering
     
+    // Show the app
+    document.getElementById('app').classList.add('visible');
+    
     // Force viewport recalculation when app actually starts
     // iOS may still have incorrect innerHeight at this point
     setActualVH();

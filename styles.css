@@ -8,7 +8,8 @@
 }
 
 html,body{height:100%;height:var(--actual-vh, 100vh);overflow:hidden;overscroll-behavior:none}
-#app{display:flex;flex-direction:column;width:100vw;height:var(--actual-vh, 100vh)}
+#app{display:none;flex-direction:column;width:100vw;height:var(--actual-vh, 100vh)}
+#app.visible{display:flex}
 body{background:#100C5C;color:#000;overflow:hidden}
 
 /* Title Screen */
