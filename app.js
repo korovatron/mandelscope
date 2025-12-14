@@ -38,12 +38,32 @@
   }
   
   // Comprehensive fix for iOS PWA viewport height and safe area inset race conditions
+  let lastKnownHeight = 0;
+  
   function setActualVH(){
     // Force layout recalculation to ensure CSS changes are applied
     document.body.offsetHeight;
     
-    const vh = window.innerHeight * 0.01;
-    document.documentElement.style.setProperty('--actual-vh', `${window.innerHeight}px`);
+    // iOS PWA bug: window.innerHeight excludes safe areas on initial load
+    // Try visualViewport first (more reliable), fallback to innerHeight
+    let viewportHeight = window.innerHeight;
+    if(window.visualViewport && window.visualViewport.height) {
+      viewportHeight = window.visualViewport.height;
+    }
+    
+    const vh = viewportHeight * 0.01;
+    document.documentElement.style.setProperty('--actual-vh', `${viewportHeight}px`);
+    
+    // Detect if height changed significantly (iOS finally calculated safe areas correctly)
+    if(lastKnownHeight > 0 && Math.abs(viewportHeight - lastKnownHeight) > 30) {
+      // Height changed significantly - trigger resize to update canvas
+      logDebug('heightChange');
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 50);
+    }
+    
+    lastKnownHeight = viewportHeight;
     logDebug('setVH');
   }
   
