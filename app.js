@@ -13,11 +13,9 @@
   
   // Multiple delayed recalculations to catch iOS safe area insets whenever they become available
   // iOS may not have calculated safe areas immediately on load
-  // Use longer delays to ensure safe area insets are fully resolved
-  setTimeout(setActualVH, 100);
-  setTimeout(setActualVH, 250);
-  setTimeout(setActualVH, 500);
-  setTimeout(setActualVH, 1000);
+  setTimeout(setActualVH, 50);
+  setTimeout(setActualVH, 150);
+  setTimeout(setActualVH, 300);
   
   // Standard event listeners
   window.addEventListener('resize', setActualVH);
