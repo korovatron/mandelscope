@@ -52,16 +52,20 @@
   
   // Multiple delayed recalculations to catch iOS safe area insets whenever they become available
   // iOS may not have calculated safe areas immediately on load
+  // Extended delays as iOS can report incorrect innerHeight initially (873 vs 932 in testing)
   setTimeout(setActualVH, 50);
   setTimeout(setActualVH, 150);
   setTimeout(setActualVH, 300);
+  setTimeout(setActualVH, 500);
+  setTimeout(setActualVH, 800);
+  setTimeout(setActualVH, 1200);
   
   // Force layout recalculation after viewport settles (fixes iOS WebGL bottom border issue)
   // Trigger a resize event to force canvas to recalculate dimensions with proper viewport height
   setTimeout(() => {
     logDebug('resizeEvt');
     window.dispatchEvent(new Event('resize'));
-  }, 350);
+  }, 1300);
   
   // Standard event listeners
   window.addEventListener('resize', setActualVH);
@@ -121,6 +125,18 @@
   
   function dismissTitleScreen(){
     appStarted = true; // Enable rendering
+    
+    // Force viewport recalculation when app actually starts
+    // iOS may still have incorrect innerHeight at this point
+    logDebug('appStart');
+    setActualVH();
+    setTimeout(() => {
+      setActualVH();
+      setTimeout(() => {
+        logDebug('appStartResize');
+        window.dispatchEvent(new Event('resize'));
+      }, 100);
+    }, 100);
     
     // Always start in Mandelbrot mode
     if(isJuliaMode){
