@@ -13,9 +13,11 @@
   
   // Multiple delayed recalculations to catch iOS safe area insets whenever they become available
   // iOS may not have calculated safe areas immediately on load
-  setTimeout(setActualVH, 50);
-  setTimeout(setActualVH, 150);
-  setTimeout(setActualVH, 300);
+  // Use longer delays to ensure safe area insets are fully resolved
+  setTimeout(setActualVH, 100);
+  setTimeout(setActualVH, 250);
+  setTimeout(setActualVH, 500);
+  setTimeout(setActualVH, 1000);
   
   // Standard event listeners
   window.addEventListener('resize', setActualVH);
@@ -2842,6 +2844,8 @@
     juliaInfo.classList.remove('hidden');
     juliaSetButtonWrap.classList.add('hidden'); // Hide Julia button in Julia mode
     backToMandelbrotBtn.classList.remove('hidden');
+    // Force orange gradient background (prevent blue from appearing)
+    backToMandelbrotBtn.style.background = 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)';
     updateJuliaDisplay();
     
     // Start from extremely zoomed out view
@@ -2865,6 +2869,8 @@
     juliaInfo.classList.add('hidden');
     juliaSetButtonWrap.classList.remove('hidden'); // Show Julia button in Mandelbrot mode
     backToMandelbrotBtn.classList.add('hidden');
+    // Force orange gradient background (prevent blue from appearing)
+    showJuliaBtn.style.background = 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)';
     
     // Restore saved Mandelbrot view if available
     if(savedMandelbrotView){
