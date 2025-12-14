@@ -17,6 +17,12 @@
   setTimeout(setActualVH, 150);
   setTimeout(setActualVH, 300);
   
+  // Force layout recalculation after viewport settles (fixes iOS WebGL bottom border issue)
+  // Trigger a resize event to force canvas to recalculate dimensions with proper viewport height
+  setTimeout(() => {
+    window.dispatchEvent(new Event('resize'));
+  }, 350);
+  
   // Standard event listeners
   window.addEventListener('resize', setActualVH);
   window.addEventListener('orientationchange', setActualVH);
