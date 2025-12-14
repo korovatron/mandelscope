@@ -51,6 +51,29 @@
       viewportHeight = window.visualViewport.height;
     }
     
+    // iOS PWA bug workaround: iOS sometimes incorrectly subtracts safe-area-top from innerHeight
+    // Detect this and manually compensate by adding it back
+    // We detect by checking if screen.height - innerHeight is suspiciously large (>100px)
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+                  window.navigator.standalone === true;
+    
+    if(isPWA && window.screen && window.screen.height) {
+      const difference = window.screen.height - viewportHeight;
+      // In PWA mode, difference should be ~34-40px (safe-area-bottom + minimal chrome)
+      // If it's >80px, iOS probably subtracted safe-area-top incorrectly
+      if(difference > 80) {
+        // Try to get safe-area-top from CSS
+        const computedStyle = getComputedStyle(document.documentElement);
+        const safeTop = computedStyle.getPropertyValue('--safe-area-top');
+        const safeTopPx = parseInt(safeTop) || 0;
+        
+        if(safeTopPx > 0) {
+          logDebug('compensate');
+          viewportHeight += safeTopPx;
+        }
+      }
+    }
+    
     const vh = viewportHeight * 0.01;
     document.documentElement.style.setProperty('--actual-vh', `${viewportHeight}px`);
     
