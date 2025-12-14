@@ -1,52 +1,4 @@
 (function(){
-  // Debug overlay logging
-  const debugStartTime = Date.now();
-  let debugEventCount = 0;
-  
-  function logDebug(label) {
-    const elapsed = Date.now() - debugStartTime;
-    debugEventCount++;
-    
-    setTimeout(() => {
-      const debugTime = document.getElementById('debug-time');
-      const debugWindow = document.getElementById('debug-window');
-      const debugVhVar = document.getElementById('debug-vh-var');
-      const debugCanvasCss = document.getElementById('debug-canvas-css');
-      const debugBody = document.getElementById('debug-body');
-      const debugSafeTop = document.getElementById('debug-safe-top');
-      const debugSafeBot = document.getElementById('debug-safe-bot');
-      const debugEvents = document.getElementById('debug-events');
-      
-      const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-      
-      if(debugTime) debugTime.textContent = elapsed + 'ms [' + label + ']';
-      if(debugWindow) debugWindow.textContent = window.innerWidth + 'x' + window.innerHeight;
-      
-      const debugScreen = document.getElementById('debug-screen');
-      const debugDiff = document.getElementById('debug-diff');
-      const debugPwa = document.getElementById('debug-pwa');
-      
-      if(debugScreen && window.screen) debugScreen.textContent = window.screen.width + 'x' + window.screen.height;
-      if(debugDiff && window.screen) debugDiff.textContent = (window.screen.height - window.innerHeight) + 'px';
-      if(debugPwa) debugPwa.textContent = isPWA ? 'YES' : 'NO';
-      
-      if(debugVhVar) debugVhVar.textContent = getComputedStyle(document.documentElement).getPropertyValue('--actual-vh');
-      if(debugBody) debugBody.textContent = document.body.offsetWidth + 'x' + document.body.offsetHeight;
-      if(debugSafeTop) debugSafeTop.textContent = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-top') || '0px';
-      if(debugSafeBot) debugSafeBot.textContent = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-bottom') || '0px';
-      if(debugEvents) debugEvents.textContent = debugEventCount;
-      
-      const canvas = document.getElementById('canvas-gl');
-      if(canvas && debugCanvasCss) {
-        debugCanvasCss.textContent = canvas.style.width + ' x ' + canvas.style.height;
-      }
-      
-      const debugCanvasSize = document.getElementById('debug-canvas-size');
-      if(canvas && debugCanvasSize) {
-        debugCanvasSize.textContent = canvas.width + 'x' + canvas.height;
-      }
-    }, 0);
-  }
   
   // Comprehensive fix for iOS PWA viewport height and safe area inset race conditions
   let lastKnownHeight = 0;
@@ -87,33 +39,13 @@
           const safeTopPx = parseInt(safeTop) || 0;
           
           if(safeTopPx > 0) {
-            logDebug('compensate');
             viewportHeight += safeTopPx;
-            // Set compensation status in debug overlay
-            setTimeout(() => {
-              const debugComp = document.getElementById('debug-comp');
-              if(debugComp) debugComp.textContent = 'YES +' + safeTopPx + 'px';
-            }, 0);
-          } else {
-            // Portrait but no safe area to compensate
-            setTimeout(() => {
-              const debugComp = document.getElementById('debug-comp');
-              if(debugComp) debugComp.textContent = 'NO (no safe area)';
-            }, 0);
           }
         } else {
           // Portrait but difference too small - no compensation needed
-          setTimeout(() => {
-            const debugComp = document.getElementById('debug-comp');
-            if(debugComp) debugComp.textContent = 'NO (diff: ' + Math.round(difference) + 'px)';
-          }, 0);
         }
       } else {
         // Landscape mode - no compensation needed
-        setTimeout(() => {
-          const debugComp = document.getElementById('debug-comp');
-          if(debugComp) debugComp.textContent = 'LANDSCAPE (skip)';
-        }, 0);
       }
     }
     
@@ -123,14 +55,12 @@
     // Detect if height changed significantly (iOS finally calculated safe areas correctly)
     if(lastKnownHeight > 0 && Math.abs(viewportHeight - lastKnownHeight) > 30) {
       // Height changed significantly - trigger resize to update canvas
-      logDebug('heightChange');
       setTimeout(() => {
         window.dispatchEvent(new Event('resize'));
       }, 50);
     }
     
     lastKnownHeight = viewportHeight;
-    logDebug('setVH');
   }
   
   // Initial calculation
@@ -149,7 +79,6 @@
   // Force layout recalculation after viewport settles (fixes iOS WebGL bottom border issue)
   // Trigger a resize event to force canvas to recalculate dimensions with proper viewport height
   setTimeout(() => {
-    logDebug('resizeEvt');
     window.dispatchEvent(new Event('resize'));
   }, 1300);
   
@@ -214,12 +143,10 @@
     
     // Force viewport recalculation when app actually starts
     // iOS may still have incorrect innerHeight at this point
-    logDebug('appStart');
     setActualVH();
     setTimeout(() => {
       setActualVH();
       setTimeout(() => {
-        logDebug('appStartResize');
         window.dispatchEvent(new Event('resize'));
       }, 100);
     }, 100);
