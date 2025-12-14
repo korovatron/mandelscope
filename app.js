@@ -64,15 +64,15 @@
     
     // iOS PWA bug workaround: iOS sometimes incorrectly subtracts safe-area-top from innerHeight
     // Detect this and manually compensate by adding it back
-    // We detect by checking if screen.height - innerHeight is suspiciously large (>100px)
     const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
                   window.navigator.standalone === true;
     
     if(isPWA && window.screen && window.screen.height) {
       const difference = window.screen.height - viewportHeight;
-      // In PWA mode, difference should be ~34-40px (safe-area-bottom + minimal chrome)
-      // If it's >80px, iOS probably subtracted safe-area-top incorrectly
-      if(difference > 80) {
+      // In PWA mode, if there's ANY significant difference (>40px), it's likely the iOS bug
+      // Normal PWA should have minimal difference (just safe-area-bottom ~34px)
+      // If difference matches safe-area-top, iOS subtracted it incorrectly
+      if(difference > 40) {
         // Try to get safe-area-top from CSS
         const computedStyle = getComputedStyle(document.documentElement);
         const safeTop = computedStyle.getPropertyValue('--safe-area-top');
