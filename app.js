@@ -108,20 +108,6 @@
     });
   }
 
-  // Google Analytics interaction tracking with throttling
-  let lastInteractionEventTime = 0;
-  const INTERACTION_THROTTLE_MS = 30000; // 30 seconds
-
-  function trackInteraction(){
-    const now = Date.now();
-    if(now - lastInteractionEventTime >= INTERACTION_THROTTLE_MS){
-      lastInteractionEventTime = now;
-      if(typeof gtag === 'function'){
-        gtag('event', 'MANDEL-interact');
-      }
-    }
-  }
-
   // Title screen handling
   const titleScreen = document.getElementById('title-screen');
   const startBtn = document.getElementById('start-btn');
@@ -2103,7 +2089,6 @@
 
   canvasGL.addEventListener('wheel', function(e){
     e.preventDefault();
-    trackInteraction();
     const {mx,my} = getClientPos(e, canvasGL);
     const before = pixelToComplex(mx, my);
 
@@ -2183,7 +2168,6 @@
     
     if(e.button === 0){
       // Left click - pan
-      trackInteraction();
       isDragging = true;
       dragStart = {x: mx_css, y: my_css};
       lastMouse = {x: mx_css, y: my_css};
@@ -2431,7 +2415,6 @@
       const now = Date.now();
       if(now - lastTap < 300 && Math.abs(tx - lastTapPos.x) < 30 && Math.abs(ty - lastTapPos.y) < 30){
         // Double tap
-        trackInteraction();
         clearTimeout(longPressTimer); // Cancel long press
         longPressTimer = null;
         
@@ -2522,7 +2505,6 @@
     if(touches.length === 1 && touchStart){
       // Pan - but only if we're not right after a pinch gesture
       if(now - lastPinchEnd > 100){
-        trackInteraction();
         const rect = canvasGL.getBoundingClientRect();
         const tx = touches[0].clientX - rect.left;
         const ty = touches[0].clientY - rect.top;
@@ -2542,7 +2524,6 @@
       }
     } else if(touches.length === 2 && initialDistance && touchStart){
       // Pinch zoom: keep the point between fingers fixed
-      trackInteraction();
       const t1 = touches[0], t2 = touches[1];
       const dx = t1.clientX - t2.clientX;
       const dy = t1.clientY - t2.clientY;
@@ -2860,7 +2841,6 @@
     }
 
     if(changed){
-      trackInteraction();
       syncCenterToView();
       updateMaxIter();
       updateZoomDisplay();
