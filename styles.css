@@ -173,7 +173,7 @@ body{background:#100C5C;color:#000;overflow:hidden}
 }
 @keyframes fadeOut{to{opacity:0;visibility:hidden}}
 header{position:absolute;top:env(safe-area-inset-top);left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;padding-left:max(14px, env(safe-area-inset-left));padding-right:max(14px, env(safe-area-inset-right));background:transparent;color:#eee;z-index:50;pointer-events:none}
-header h1{font-size:1.1rem;display:flex;align-items:center;gap:8px;color:#8af;text-shadow:0 0 4px rgba(0,0,0,1),0 0 8px rgba(0,0,0,1),0 0 12px rgba(0,0,0,0.9),0 2px 8px rgba(0,0,0,0.8);filter:drop-shadow(0 0 6px rgba(0,0,0,0.9))}
+header .app-title{font-size:1.1rem;display:flex;align-items:center;gap:8px;color:#8af;text-shadow:0 0 4px rgba(0,0,0,1),0 0 8px rgba(0,0,0,1),0 0 12px rgba(0,0,0,0.9),0 2px 8px rgba(0,0,0,0.8);filter:drop-shadow(0 0 6px rgba(0,0,0,0.9))}
 header button{pointer-events:auto}
 .logo{width:28px;height:28px;vertical-align:middle}
 
@@ -266,7 +266,7 @@ button:hover{background:rgba(102,126,234,0.35);border-color:rgba(102,126,234,0.6
 #manage-locations-list:empty::after{content:"No saved locations yet";color:rgba(255,255,255,0.5);display:block;text-align:center;padding:20px}
 @media (max-width: 600px){
   header{padding:8px 10px}
-  header h1{font-size:1rem}
+  header .app-title{font-size:1rem}
   .controls{gap:8px}
   .controls label{font-size:0.85rem}
   .controls input[type=range]{width:120px;min-width:80px}
