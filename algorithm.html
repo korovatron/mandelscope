@@ -10,7 +10,7 @@
   <meta name="robots" content="noindex, follow" />
   
   <title>Mandelscope - Educational Guide: Programming the Mandelbrot Set</title>
-  <meta name="description" content="Learn how to program the Mandelbrot set from scratch. Step-by-step guide with pseudocode and working implementation for A-level Maths and Computer Science students." />
+  <meta name="description" content="Learn how to program the Mandelbrot set from scratch. Step-by-step guide with a working implementation for A-level Maths and Computer Science students." />
   
   <link rel="icon" type="image/png" href="iconTrans.png">
   <link rel="stylesheet" href="styles.css">
@@ -53,6 +53,68 @@
       border-bottom: 2px solid rgba(136, 170, 255, 0.3);
       padding-bottom: 10px;
     }
+
+    .collapsible-section {
+      margin-top: 24px;
+      padding: 0 0 10px 0;
+      border: 1px solid rgba(136, 170, 255, 0.2);
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    .collapsible-summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 0 16px;
+      user-select: none;
+    }
+
+    .collapsible-summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .collapsible-summary::before {
+      content: '+';
+      color: #8af;
+      display: inline-block;
+      width: 36px;
+      font-size: 2rem;
+      line-height: 1;
+      font-weight: bold;
+      text-align: center;
+      vertical-align: middle;
+      transform: translateY(2px);
+    }
+
+    .collapsible-section[open] > .collapsible-summary::before {
+      content: '-';
+    }
+
+    .collapsible-summary h2 {
+      display: inline-block;
+      margin: 0;
+      padding: 16px 0 14px 0;
+      border-bottom: none;
+      width: calc(100% - 42px);
+      vertical-align: middle;
+    }
+
+    .collapsible-section[open] > .collapsible-summary h2 {
+      border-bottom: 2px solid rgba(136, 170, 255, 0.3);
+      margin-bottom: 10px;
+    }
+
+    .collapsible-section > :not(.collapsible-summary) {
+      margin-left: 16px;
+      margin-right: 16px;
+    }
+
+    .collapsible-section > #code-editor,
+    .collapsible-section > .editor-controls {
+      width: calc(100% - 32px);
+      margin-left: 16px;
+      margin-right: 16px;
+    }
     
     .education-content h3 {
       color: #f8a;
@@ -87,20 +149,6 @@
       font-family: 'Times New Roman', serif;
       font-size: 1.2rem;
       text-align: center;
-    }
-    
-    .pseudocode {
-      background: rgba(0, 0, 0, 0.5);
-      padding: 20px;
-      border-radius: 8px;
-      border-left: 4px solid #f8a;
-      margin: 20px 0;
-      font-family: 'Courier New', monospace;
-      font-size: 0.95rem;
-      line-height: 1.6;
-      white-space: pre;
-      overflow-x: auto;
-      color: #E8F4FD;
     }
     
     #code-editor {
@@ -317,66 +365,6 @@
       </p>
 
       <h2>The Algorithm</h2>
-      
-      <h3>Pseudocode</h3>
-      <p>Here's the algorithm in language-independent pseudocode:</p>
-      
-      <div class="pseudocode">FUNCTION mandelbrot(c_real, c_imag, max_iterations)
-    // c_real: real part of c
-    // c_imag: imaginary part of c
-    // max_iterations: how many times to iterate before giving up
-    
-    z_real = 0
-    z_imag = 0
-    
-    FOR iteration FROM 0 TO max_iterations
-        // Calculate magnitude squared: |z|²
-        magnitude_squared = z_real * z_real + z_imag * z_imag
-        
-        // Check if escaped (using |z|² > 4 instead of |z| > 2 to avoid sqrt)
-        IF magnitude_squared > 4 THEN
-            RETURN iteration  // Escaped after 'iteration' steps
-        END IF
-        
-        // Calculate z² = (z_real + z_imag*i)²
-        // Using: (a + bi)² = (a² - b²) + (2ab)i
-        new_real = z_real * z_real - z_imag * z_imag
-        new_imag = 2 * z_real * z_imag
-        
-        // Add c to get z² + c
-        z_real = new_real + c_real
-        z_imag = new_imag + c_imag
-    END FOR
-    
-    RETURN max_iterations  // Didn't escape - probably in the set
-END FUNCTION
-
-
-FUNCTION drawMandelbrot(width, height, max_iterations)
-    // Define the region of the complex plane to view
-    x_min = -2.5
-    x_max = 1.0
-    y_min = -1.25
-    y_max = 1.25
-    
-    FOR each pixel row y FROM 0 TO height
-        FOR each pixel column x FROM 0 TO width
-            // Map pixel coordinates to complex plane
-            c_real = x_min + (x / width) * (x_max - x_min)
-            c_imag = y_min + (y / height) * (y_max - y_min)
-            
-            // Test if this point is in the Mandelbrot set
-            iterations = mandelbrot(c_real, c_imag, max_iterations)
-            
-            // Color the pixel
-            IF iterations == max_iterations THEN
-                setPixel(x, y, DARK_COLOR)  // In the set
-            ELSE
-                setPixel(x, y, LIGHT_COLOR)  // Not in the set
-            END IF
-        END FOR
-    END FOR
-END FUNCTION</div>
 
       <h3>Key Implementation Details</h3>
       <ul>
@@ -401,7 +389,7 @@ END FUNCTION</div>
 
       <h3>JavaScript Implementation</h3>
       <p style="color: #8af; margin-bottom: 10px;">
-        <strong>✏️ Editable Code:</strong> Try modifying the code below and click "Run Code" to see your changes!
+        <strong>Editable Code:</strong> Try modifying the code below and click "Run Code" to see your changes!
       </p>
       <textarea id="code-editor" spellcheck="false">// Get the canvas and its 2D rendering context
 const canvas = document.getElementById('mandelbrot-canvas');
@@ -482,7 +470,7 @@ function drawMandelbrot() {
 // Draw the Mandelbrot set
 drawMandelbrot();</textarea>
       
-      <div style="margin: 15px 0; display: flex; gap: 10px; align-items: center;">
+      <div class="editor-controls" style="margin: 15px 16px; display: flex; gap: 10px; align-items: center;">
         <button id="run-button" style="padding: 10px 20px; background: #4ade80; color: #000; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 1rem;">
           ▶ Run Code
         </button>
@@ -493,89 +481,62 @@ drawMandelbrot();</textarea>
       </div>
       
       <div class="info-box" style="background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.3);">
-        <strong>💡 Try These Experiments:</strong>
+        <strong>Try These Experiments:</strong>
         <ul style="margin: 10px 0 0 0;">
           <li>Change <code>maxIterations</code> to 50 or 200 to see how detail changes</li>
           <li>Modify the viewing window (xMin, xMax, yMin, yMax) to zoom in</li>
           <li>Change the colors: try <code>'#ff5555'</code>, <code>'#88ff88'</code>, or experiment with different hex codes</li>
           <li>Add a third color for points that escape quickly: <code>if (iterations &lt; 10) ctx.fillStyle = '#999';</code></li>
-          <li>Make the canvas smaller (e.g., 300×225) to see it draw faster</li>
+         
         </ul>
       </div>
 
-      <h2>Understanding the Output</h2>
-      <p>
-        In the image above, you should see:
-      </p>
-      <ul>
-        <li><strong>Dark blue regions:</strong> Points that are IN the Mandelbrot set (never escaped)</li>
-        <li><strong>Cyan regions:</strong> Points that are NOT in the set (escaped to infinity)</li>
-        <li><strong>The main cardioid:</strong> The large bulbous dark shape in the center</li>
-        <li><strong>The circular bulb:</strong> The circular dark region to the left of the cardioid</li>
-        <li><strong>Smaller bulbs:</strong> Tiny circular structures around the main shape</li>
-      </ul>
-      
-      <div class="info-box">
-        <strong>Tip:</strong> The boundary between dark and light is where the interesting fractal patterns emerge. 
-        In the main Mandelscope explorer, we use colors to show HOW QUICKLY points escape, revealing beautiful detail.
-      </div>
-
-      <h2>Extending the Basic Implementation</h2>
-      <p>
-        Once you understand this basic implementation, you can add many enhancements:
-      </p>
-      <ul>
-        <li><strong>Smooth coloring:</strong> Use the iteration count to assign colors, creating the rainbow patterns you see in the main explorer</li>
-        <li><strong>Zooming:</strong> Allow users to zoom into regions by adjusting xMin, xMax, yMin, yMax</li>
-        <li><strong>Panning:</strong> Let users drag to move around the complex plane</li>
-        <li><strong>Higher precision:</strong> For extreme zoom levels, you need arbitrary-precision arithmetic (like the main explorer uses)</li>
-        <li><strong>GPU acceleration:</strong> Move the calculation to the GPU using WebGL shaders for real-time performance</li>
-        <li><strong>Julia sets:</strong> Instead of fixing z₀=0 and varying c, fix c and vary z₀ to generate Julia sets</li>
-      </ul>
-
-      <h2>Computational Complexity</h2>
-      <p>
-        For an image of W×H pixels with maximum M iterations per point:
-      </p>
-      <ul>
-        <li><strong>Time complexity:</strong> O(W × H × M) - we test every pixel up to M times</li>
-        <li><strong>Space complexity:</strong> O(W × H) - we need to store the image data</li>
-      </ul>
-      <p>
-        For a 600×450 image with 100 iterations, that's up to <strong>27 million operations</strong>! 
-        This is why the main Mandelscope explorer uses GPU acceleration - graphics cards can perform these calculations in parallel across thousands of cores.
-      </p>
-
-      <h2>Try It Yourself</h2>
-      <div class="key-concept">
-        <strong>Exercise:</strong> Try modifying the code above to:
-        <ul style="margin-top: 10px;">
-          <li>Change the viewing window (xMin, xMax, yMin, yMax) to zoom into different regions</li>
-          <li>Increase maxIterations to 200 or 500 to see more detail (warning: will be slower!)</li>
-          <li>Add grayscale coloring: map the iteration count to different shades of gray</li>
-          <li>Draw only the boundary: color pixels differently only if they escape within a certain iteration range</li>
-        </ul>
-      </div>
-
-      <h2>Further Learning</h2>
-      <p>
-        <strong>Next steps in your Mandelbrot journey:</strong>
-      </p>
-      <ul>
-        <li>Research the <strong>escape time algorithm</strong> for smooth coloring</li>
-        <li>Learn about <strong>complex dynamics</strong> and how the formula relates to iteration stability</li>
-        <li>Explore <strong>Julia sets</strong> - the "siblings" of the Mandelbrot set</li>
-        <li>Study <strong>perturbation theory</strong> to understand deep zooming (used in the main explorer)</li>
-        <li>Investigate other fractals: Burning Ship, Newton fractals, Lyapunov fractals</li>
-      </ul>
-
-      <p style="margin-top: 40px; text-align: center;">
+        <p style="margin-top: 40px; text-align: center;">
         <a href="index.html" class="back-link">← Back to Mandelscope</a>
       </p>
     </div>
   </div>
 
   <script>
+    // Convert each top-level h2 section into a collapsible region.
+    const educationContent = document.querySelector('.education-content');
+    const topLevelSections = Array.from(educationContent.children).filter((node) => node.tagName === 'H2');
+
+    topLevelSections.forEach((heading, index) => {
+      const details = document.createElement('details');
+      details.className = 'collapsible-section';
+      details.open = index === 0;
+
+      const summary = document.createElement('summary');
+      summary.className = 'collapsible-summary';
+
+      heading.parentNode.insertBefore(details, heading);
+      details.appendChild(summary);
+      summary.appendChild(heading);
+
+      let sibling = details.nextSibling;
+      while (sibling && !(sibling.tagName === 'H2' && sibling.parentElement === educationContent)) {
+        const nextSibling = sibling.nextSibling;
+        details.appendChild(sibling);
+        sibling = nextSibling;
+      }
+    });
+
+    const collapsibleSections = Array.from(document.querySelectorAll('.collapsible-section'));
+    collapsibleSections.forEach((section) => {
+      section.addEventListener('toggle', () => {
+        if (!section.open) {
+          return;
+        }
+
+        collapsibleSections.forEach((otherSection) => {
+          if (otherSection !== section) {
+            otherSection.open = false;
+          }
+        });
+      });
+    });
+
     // Get the canvas and its 2D rendering context
     const canvas = document.getElementById('mandelbrot-canvas');
     const ctx = canvas.getContext('2d');
