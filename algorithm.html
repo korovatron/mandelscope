@@ -369,7 +369,7 @@
       <h3>Key Implementation Details</h3>
       <ul>
         <li><strong>Coordinate mapping:</strong> We map pixel coordinates (0 to width/height) to complex plane coordinates (e.g., -2.5 to 1.0)</li>
-        <li><strong>Optimization:</strong> We check |z|² &gt; 4 instead of |z| &gt; 2 to avoid calculating square roots (since (√x)² = x, and 2² = 4)</li>
+        <li><strong>Optimisation:</strong> We check |z|² &gt; 4 instead of |z| &gt; 2 to avoid calculating square roots (since (√x)² = x, and 2² = 4)</li>
         <li><strong>Iteration count:</strong> Typical values are 50-500. Higher values show more detail but take longer to compute</li>
         <li><strong>The region:</strong> The standard view shows real values from -2.5 to 1.0, imaginary values from -1.25 to 1.25</li>
       </ul>
@@ -377,7 +377,7 @@
       <h2>Working Implementation</h2>
       <p>
         Here's a complete, minimal implementation in JavaScript using a 2D canvas. 
-        This code draws a simple two-color Mandelbrot set with no additional features.
+        This code draws a simple two-colour Mandelbrot set with no additional features.
       </p>
       
       <div class="canvas-container">
@@ -454,7 +454,7 @@ function drawMandelbrot() {
             // Test if this point is in the Mandelbrot set
             const iterations = mandelbrot(cReal, cImag, maxIterations);
             
-            // Set pixel color
+            // Set pixel colour
             if (iterations === maxIterations) {
                 ctx.fillStyle = '#1e3a5f';  // In the set - dark blue
             } else {
@@ -485,8 +485,8 @@ drawMandelbrot();</textarea>
         <ul style="margin: 10px 0 0 0;">
           <li>Change <code>maxIterations</code> to 50 or 200 to see how detail changes</li>
           <li>Modify the viewing window (xMin, xMax, yMin, yMax) to zoom in</li>
-          <li>Change the colors: try <code>'#ff5555'</code>, <code>'#88ff88'</code>, or experiment with different hex codes</li>
-          <li>Add a third color for points that escape quickly: <code>if (iterations &lt; 10) ctx.fillStyle = '#999';</code></li>
+          <li>Change the colours: try <code>'#ff5555'</code>, <code>'#88ff88'</code>, or experiment with different hex codes</li>
+          <li>Add a third colour for points that escape quickly: <code>if (iterations &lt; 10) ctx.fillStyle = '#999';</code></li>
          
         </ul>
       </div>
