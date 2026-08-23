@@ -3023,6 +3023,9 @@
     updateZoomDisplay();
     requestRender();
     
+    // Push history entry so the browser back button returns to Mandelbrot
+    history.pushState({mandelscope: 'julia'}, '');
+
     // Animate to normal Julia set starting position
     setTimeout(() => {
       const targetScale = Math.min(maxScale, Math.max(4.0 / canvasGL.width, 4.0 / canvasGL.height));
@@ -3061,8 +3064,13 @@
     // No longer displaying Julia c value in UI
   }
 
-  // Back to Mandelbrot button
-  backToMandelbrotBtn.addEventListener('click', switchToMandelbrot);
+  // Back to Mandelbrot button - go back in history (popstate handles the switch)
+  backToMandelbrotBtn.addEventListener('click', function(){ history.back(); });
+
+  // Browser back button (and mouse side-button) returns from Julia to Mandelbrot
+  window.addEventListener('popstate', function(){
+    if(isJuliaMode) switchToMandelbrot();
+  });
 
   // Context menu state
   let contextMenuPos = {x: 0, y: 0, cx: 0, cy: 0, mx_css: 0, my_css: 0};
