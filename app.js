@@ -2589,27 +2589,13 @@
     }
   }, {passive: false});
 
-  // Throttle touch move events to prevent iPad from being overwhelmed
   let lastTouchMoveTime = 0;
   let pendingTouchMove = null;
 
-  canvasGL.addEventListener('touchmove', function(e){
-    e.preventDefault();
-    // Cancel long press if finger moves
-    if(longPressTimer){
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
-    }
-    
-    // Throttle: only process touch moves every 16ms (60fps max)
+  function processTouchMove(e){
     const now = Date.now();
-    if(now - lastTouchMoveTime < 16){
-      // Store the event to process later
-      pendingTouchMove = e;
-      return;
-    }
     lastTouchMoveTime = now;
-    
+
     const touches = e.touches;
     if(touches.length === 1 && touchStart){
       // Pan - but only if we're not right after a pinch gesture
@@ -2617,12 +2603,10 @@
         const rect = canvasGL.getBoundingClientRect();
         const tx = touches[0].clientX - rect.left;
         const ty = touches[0].clientY - rect.top;
-        // Use actual canvas to CSS pixel ratio (accounts for throttling)
         const actualRatioX = canvasGL.width / canvasGL.clientWidth;
         const actualRatioY = canvasGL.height / canvasGL.clientHeight;
         const dx = (tx - touchStart.x) * actualRatioX;
         const dy = (ty - touchStart.y) * actualRatioY;
-        // Pan using Decimal precision
         const deltaRe = new Decimal(-dx * view.scale);
         const deltaIm = new Decimal(dy * view.scale);
         centerRe = centerRe.add(deltaRe);
@@ -2639,34 +2623,45 @@
       const dx = t1.clientX - t2.clientX;
       const dy = t1.clientY - t2.clientY;
       const distance = Math.sqrt(dx*dx + dy*dy);
-      
-      // Calculate new scale
       const scaleFactor = distance / initialDistance;
       const oldScale = view.scale;
       let newScale = initialScale / scaleFactor;
-      // Clamp scale to prevent zooming out too far or in too deep
       newScale = Math.max(getMinScale(), Math.min(maxScale, newScale));
       view.scale = newScale;
       const actualZoomFactor = newScale / oldScale;
-      
-      // Calculate offset of pinch point from center in old scale
       const scaleChange = new Decimal(actualZoomFactor).sub(1);
       const offsetRe = new Decimal((touchStart.x - canvasGL.width / 2) * oldScale);
       const offsetIm = new Decimal((canvasGL.height / 2 - touchStart.y) * oldScale);
-      
-      // Adjust center in Decimal precision
       centerRe = centerRe.sub(offsetRe.mul(scaleChange));
       centerIm = centerIm.sub(offsetIm.mul(scaleChange));
       syncCenterToView();
-      
-      updateMaxIter(); // Update iterations when pinch zooming
-      updateZoomDisplay(); // Update zoom level display
+      updateMaxIter();
+      updateZoomDisplay();
       requestRender();
     }
+  }
+
+  canvasGL.addEventListener('touchmove', function(e){
+    e.preventDefault();
+    if(longPressTimer){
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+    const now = Date.now();
+    if(now - lastTouchMoveTime < 16){
+      pendingTouchMove = e;
+      return;
+    }
+    processTouchMove(e);
   }, {passive: false});
 
   canvasGL.addEventListener('touchend', function(e){
     e.preventDefault();
+    // Drain any throttled move so velocity reflects the last actual position
+    if(pendingTouchMove){
+      processTouchMove(pendingTouchMove);
+      pendingTouchMove = null;
+    }
     // Cancel long press timer
     if(longPressTimer){
       clearTimeout(longPressTimer);
@@ -2687,7 +2682,6 @@
       };
     } else if(e.touches.length === 0){
       // All touches ended
-      coordInfo.classList.add('hidden');
       touchStart = null;
       initialDistance = null;
       initialScale = null;
