@@ -2145,6 +2145,8 @@
   let dragStart = null;
   let lastMouse = null;
   let zoomRect = null;
+  let rightClickStart = null; // right mousedown position (CSS px)
+  let rightDragged = false;
 
   // Pan inertia state
   let panVelocity = {x: 0, y: 0};
@@ -2211,8 +2213,13 @@
       isDragging = true;
       dragStart = {x: mx_css, y: my_css};
       lastMouse = {x: mx_css, y: my_css};
+    } else if(e.button === 2){
+      // Right click - may become drag-to-zoom once threshold is crossed
+      rightClickStart = {x: mx_css, y: my_css};
+      rightDragged = false;
+      isDragging = true;
+      dragStart = {x: mx_css, y: my_css};
     }
-    // Right click handled by contextmenu event
   });
 
   // Function to update coordinate display in settings panel
@@ -2274,6 +2281,7 @@
   // Right-click context menu
   canvasGL.addEventListener('contextmenu', function(e){
     e.preventDefault();
+    if(rightDragged){ rightDragged = false; return; }
     hideContextMenu();
     
     const rect = canvasGL.getBoundingClientRect();
@@ -2298,11 +2306,23 @@
     const my_css = (e.clientY - rect.top);
 
     if(zoomRect){
-      // clamp to canvas bounds and convert to CSS px
-      const xStart = Math.min(dragStart.x, mx_css);
-      const xEnd = Math.max(dragStart.x, mx_css);
-      const yStart = Math.min(dragStart.y, my_css);
-      const yEnd = Math.max(dragStart.y, my_css);
+      let endX = mx_css, endY = my_css;
+      if(rightDragged){
+        const viewAR = canvasGL.clientWidth / canvasGL.clientHeight;
+        let dw = mx_css - dragStart.x;
+        let dh = my_css - dragStart.y;
+        if(Math.abs(dw) / Math.max(Math.abs(dh), 0.001) > viewAR){
+          dh = (dh >= 0 ? 1 : -1) * Math.abs(dw) / viewAR;
+        } else {
+          dw = (dw >= 0 ? 1 : -1) * Math.abs(dh) * viewAR;
+        }
+        endX = dragStart.x + dw;
+        endY = dragStart.y + dh;
+      }
+      const xStart = Math.min(dragStart.x, endX);
+      const xEnd = Math.max(dragStart.x, endX);
+      const yStart = Math.min(dragStart.y, endY);
+      const yEnd = Math.max(dragStart.y, endY);
       const cssLeft = xStart + rect.left;
       const cssTop = yStart + rect.top;
       const cssW = Math.max(1, (xEnd - xStart));
@@ -2311,6 +2331,12 @@
       zoomRect.style.top = cssTop + 'px';
       zoomRect.style.width = cssW + 'px';
       zoomRect.style.height = cssH + 'px';
+    } else if(rightClickStart){
+      // Right-drag: start zoom rect once past 5px threshold
+      if(Math.hypot(mx_css - rightClickStart.x, my_css - rightClickStart.y) > 5){
+        rightDragged = true;
+        startZoomRect(rightClickStart.x, rightClickStart.y);
+      }
     } else {
       // pan
       const dx_css = mx_css - lastMouse.x;
@@ -2333,7 +2359,9 @@
   window.addEventListener('mouseup', function(e){
     if(!isDragging) return;
     isDragging = false;
-    if(!zoomRect && performance.now() - lastMoveTime < 100 && !panInertiaRunning){
+    const wasRightDrag = rightClickStart !== null;
+    rightClickStart = null;
+    if(!zoomRect && !wasRightDrag && performance.now() - lastMoveTime < 100 && !panInertiaRunning){
       startPanInertia();
     }
     const rect = canvasGL.getBoundingClientRect();
@@ -2343,10 +2371,23 @@
     const my = my_css * devicePixelRatio;
     if(zoomRect){
   // compute new view to match rectangle (use device pixels)
-  let x1 = Math.min(dragStart.x, mx);
-  let x2 = Math.max(dragStart.x, mx);
-  let y1 = Math.min(dragStart.y, my);
-  let y2 = Math.max(dragStart.y, my);
+  let endMx = mx, endMy = my;
+  if(rightDragged){
+    const viewAR = canvasGL.clientWidth / canvasGL.clientHeight;
+    let dw = mx_css - dragStart.x;
+    let dh = my_css - dragStart.y;
+    if(Math.abs(dw) / Math.max(Math.abs(dh), 0.001) > viewAR){
+      dh = (dh >= 0 ? 1 : -1) * Math.abs(dw) / viewAR;
+    } else {
+      dw = (dw >= 0 ? 1 : -1) * Math.abs(dh) * viewAR;
+    }
+    endMx = (dragStart.x + dw) * devicePixelRatio;
+    endMy = (dragStart.y + dh) * devicePixelRatio;
+  }
+  let x1 = Math.min(dragStart.x, endMx);
+  let x2 = Math.max(dragStart.x, endMx);
+  let y1 = Math.min(dragStart.y, endMy);
+  let y2 = Math.max(dragStart.y, endMy);
   // clamp to canvas bounds (device pixels)
   x1 = Math.max(0, Math.min(x1, canvasGL.width));
   x2 = Math.max(0, Math.min(x2, canvasGL.width));
