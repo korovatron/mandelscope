@@ -256,6 +256,8 @@
   const optimizationStatus = document.getElementById('optimization-status');
   const coordDisplaySetting = document.getElementById('coord-display-setting');
   const coordValuePanel = document.getElementById('coord-value-panel');
+  const overlayCoords = document.getElementById('overlay-coords');
+  const showOverlayCoords = window.matchMedia('(pointer: fine)').matches;
   const juliaSetButtonWrap = document.getElementById('julia-set-button-wrap');
   const showJuliaBtn = document.getElementById('show-julia-btn');
 
@@ -2253,6 +2255,14 @@
     
     // Display in settings panel (desktop and mobile)
     coordValuePanel.innerHTML = `${realStr} ${sign}<br>${imagAbs}i`;
+
+    if(showOverlayCoords){
+      const zoomInfo = document.getElementById('zoom-info');
+      overlayCoords.style.display = 'block';
+      overlayCoords.innerHTML = `${realStr}<br>${imagAbs}i`;
+      zoomInfo.classList.remove('fade-out');
+      if(updateZoomDisplay.fadeTimer) clearTimeout(updateZoomDisplay.fadeTimer);
+    }
   }
 
   // Update coordinate display on mouse move over canvas
@@ -2263,6 +2273,18 @@
     const mx = mx_css * devicePixelRatio;
     const my = my_css * devicePixelRatio;
     updateCoordinateDisplay(mx, my);
+  });
+
+  canvasGL.addEventListener('mouseleave', function(){
+    if(showOverlayCoords){
+      overlayCoords.style.display = 'none';
+      overlayCoords.innerHTML = '';
+      const zoomInfo = document.getElementById('zoom-info');
+      if(updateZoomDisplay.fadeTimer) clearTimeout(updateZoomDisplay.fadeTimer);
+      updateZoomDisplay.fadeTimer = setTimeout(function(){
+        zoomInfo.classList.add('fade-out');
+      }, 1500);
+    }
   });
   
   // Update coordinate display on touch move as well
