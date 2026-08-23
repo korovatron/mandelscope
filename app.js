@@ -2146,6 +2146,31 @@
   let lastMouse = null;
   let zoomRect = null;
 
+  // Pan inertia state
+  let panVelocity = {x: 0, y: 0};
+  let lastMoveTime = 0;
+  let panInertiaRunning = false;
+
+  function startPanInertia(){
+    panInertiaRunning = true;
+    let vx = panVelocity.x;
+    let vy = panVelocity.y;
+    function inertiaStep(){
+      if(!panInertiaRunning || (Math.abs(vx) < 0.1 && Math.abs(vy) < 0.1)){
+        panInertiaRunning = false;
+        return;
+      }
+      vx *= 0.92;
+      vy *= 0.92;
+      centerRe = centerRe.add(new Decimal(-vx * view.scale));
+      centerIm = centerIm.add(new Decimal(vy * view.scale));
+      syncCenterToView();
+      requestRender();
+      requestAnimationFrame(inertiaStep);
+    }
+    requestAnimationFrame(inertiaStep);
+  }
+
   canvasGL.addEventListener('contextmenu', e => e.preventDefault());
 
   // Helper to start zoom rectangle
@@ -2172,6 +2197,7 @@
   }
 
   canvasGL.addEventListener('mousedown', function(e){
+    panInertiaRunning = false;
     // If zoom rect is active, don't interfere - any click will complete it on mouseup
     if(zoomRect) return;
     
@@ -2297,6 +2323,8 @@
       centerRe = centerRe.add(deltaRe);
       centerIm = centerIm.add(deltaIm);
       syncCenterToView();
+      panVelocity = {x: dx, y: dy};
+      lastMoveTime = performance.now();
       lastMouse = {x: mx_css, y: my_css};
       requestRender();
     }
@@ -2305,6 +2333,9 @@
   window.addEventListener('mouseup', function(e){
     if(!isDragging) return;
     isDragging = false;
+    if(!zoomRect && performance.now() - lastMoveTime < 100 && !panInertiaRunning){
+      startPanInertia();
+    }
     const rect = canvasGL.getBoundingClientRect();
     const mx_css = (e.clientX - rect.left);
     const my_css = (e.clientY - rect.top);
@@ -2401,6 +2432,7 @@
 
   canvasGL.addEventListener('touchstart', function(e){
     e.preventDefault();
+    panInertiaRunning = false;
     const touches = e.touches;
     if(touches.length === 1){
       // Single touch: start pan
@@ -2533,6 +2565,8 @@
         centerRe = centerRe.add(deltaRe);
         centerIm = centerIm.add(deltaIm);
         syncCenterToView();
+        panVelocity = {x: dx, y: dy};
+        lastMoveTime = performance.now();
         touchStart = {x: tx, y: ty};
         requestRender();
       }
@@ -2594,6 +2628,9 @@
       touchStart = null;
       initialDistance = null;
       initialScale = null;
+      if(performance.now() - lastMoveTime < 100 && !panInertiaRunning){
+        startPanInertia();
+      }
     }
   }, {passive: false});
 
