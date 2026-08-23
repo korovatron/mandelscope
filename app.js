@@ -2087,42 +2087,56 @@
     return {mx,my,rect};
   }
 
-  canvasGL.addEventListener('wheel', function(e){
-    e.preventDefault();
-    const {mx,my} = getClientPos(e, canvasGL);
-    const before = pixelToComplex(mx, my);
+  // Smooth wheel zoom: accumulate velocity and drain it each animation frame
+  let wheelVelocity = 0;
+  let wheelPivot = {mx: 0, my: 0};
+  let wheelAnimRunning = false;
 
-  // Normalize: positive deltaY means wheel down; make wheel down zoom out
-  const delta = e.deltaY;
-  const zoomFactor = Math.exp(delta * 0.0015);
+  function wheelStep(){
+    if(Math.abs(wheelVelocity) < 0.0001){
+      wheelVelocity = 0;
+      wheelAnimRunning = false;
+      return;
+    }
+    // Apply 18% of remaining velocity per frame (exponential decay ~60fps -> ~250ms settle)
+    const applyDelta = wheelVelocity * 0.18;
+    wheelVelocity -= applyDelta;
+
+    const {mx, my} = wheelPivot;
+    const zoomFactor = Math.exp(applyDelta);
     const oldScale = view.scale;
-    view.scale *= zoomFactor;
-    // Clamp scale to prevent zooming out too far or in too deep
-    view.scale = Math.max(getMinScale(), Math.min(maxScale, view.scale));
+    view.scale = Math.max(getMinScale(), Math.min(maxScale, view.scale * zoomFactor));
     const actualZoomFactor = view.scale / oldScale;
 
-    // Calculate how much the point under cursor moves in complex space
     const scaleChange = new Decimal(actualZoomFactor).sub(1);
     const offsetRe = new Decimal((mx - canvasGL.width / 2) * oldScale);
     const offsetIm = new Decimal((canvasGL.height / 2 - my) * oldScale);
-    
-    // Adjust center so point under cursor stays fixed (in Decimal precision)
     centerRe = centerRe.sub(offsetRe.mul(scaleChange));
     centerIm = centerIm.sub(offsetIm.mul(scaleChange));
     syncCenterToView();
 
-    // Clear optimized iteration value if zooming significantly (>2x change) or leaving deep zoom
     const wasDeepZoom = oldScale <= 1e-7;
-    const isDeepZoom = view.scale <= 1e-7;
-    const significantZoom = Math.abs(actualZoomFactor - 1) > 1.0; // >2x zoom change
-    
-    if(significantZoom || (wasDeepZoom && !isDeepZoom)){
-      optimizedIterValue = null; // Clear so optimizer can re-run for new depth
+    const isNowDeepZoom = view.scale <= 1e-7;
+    if(wasDeepZoom && !isNowDeepZoom){
+      optimizedIterValue = null;
     }
 
-    updateMaxIter(); // Update iterations when zooming
-    updateZoomDisplay(); // Update zoom level display
+    updateMaxIter();
+    updateZoomDisplay();
     requestRender();
+    requestAnimationFrame(wheelStep);
+  }
+
+  canvasGL.addEventListener('wheel', function(e){
+    e.preventDefault();
+    const {mx, my} = getClientPos(e, canvasGL);
+    wheelPivot = {mx, my};
+    // Normalize: positive deltaY means wheel down; make wheel down zoom out
+    wheelVelocity += e.deltaY * 0.0015;
+    if(!wheelAnimRunning){
+      wheelAnimRunning = true;
+      requestAnimationFrame(wheelStep);
+    }
   }, {passive:false});
   
 
