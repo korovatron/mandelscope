@@ -2590,7 +2590,7 @@
   }, {passive: false});
 
   let lastTouchMoveTime = 0;
-  let pendingTouchMove = null;
+  let pendingTouchMove = null; // {tx, ty, t} in CSS px
 
   function processTouchMove(e){
     const now = Date.now();
@@ -2649,19 +2649,33 @@
     }
     const now = Date.now();
     if(now - lastTouchMoveTime < 16){
-      pendingTouchMove = e;
+      // Store coordinates immediately - do NOT store the event object (iOS reuses them)
+      if(e.touches.length >= 1){
+        const rect2 = canvasGL.getBoundingClientRect();
+        pendingTouchMove = {tx: e.touches[0].clientX - rect2.left, ty: e.touches[0].clientY - rect2.top, t: now};
+      }
       return;
     }
+    pendingTouchMove = null; // processed event supersedes any stale pending position
     processTouchMove(e);
   }, {passive: false});
 
   canvasGL.addEventListener('touchend', function(e){
     e.preventDefault();
-    // Drain any throttled move so velocity reflects the last actual position
-    if(pendingTouchMove){
-      processTouchMove(pendingTouchMove);
-      pendingTouchMove = null;
+    // Apply any pending throttled position if it is fresh and ahead of touchStart
+    if(pendingTouchMove && touchStart && (Date.now() - pendingTouchMove.t) < 80){
+      const rect = canvasGL.getBoundingClientRect();
+      const actualRatioX = canvasGL.width / canvasGL.clientWidth;
+      const actualRatioY = canvasGL.height / canvasGL.clientHeight;
+      const dx = (pendingTouchMove.tx - touchStart.x) * actualRatioX;
+      const dy = (pendingTouchMove.ty - touchStart.y) * actualRatioY;
+      centerRe = centerRe.add(new Decimal(-dx * view.scale));
+      centerIm = centerIm.add(new Decimal(dy * view.scale));
+      syncCenterToView();
+      panVelocity = {x: dx, y: dy};
+      lastMoveTime = performance.now();
     }
+    pendingTouchMove = null;
     // Cancel long press timer
     if(longPressTimer){
       clearTimeout(longPressTimer);
