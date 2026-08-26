@@ -21,9 +21,10 @@
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://www.korovatron.co.uk/mandelscope/" />
-  <meta property="og:title" content="Mandelscope - Interactive Mandelbrot & Julia Set Explorer" />
+  <meta property="og:title" content="Mandelscope - Interactive Mandelbrot &amp; Julia Set Explorer" />
   <meta property="og:description" content="Explore Mandelbrot and Julia sets with real-time GPU rendering, preset locations, and perturbation-powered deep zoom down to 10^-38 in your browser." />
   <meta property="og:image" content="https://www.korovatron.co.uk/mandelscope/screenshot.png" />
+  <meta property="og:site_name" content="Korovatron" />
   
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image" />
@@ -51,25 +52,58 @@
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "WebApplication",
-    "name": "Mandelscope",
-    "description": "Explore Mandelbrot and Julia sets with real-time GPU rendering, preset locations, and perturbation-powered deep zoom down to 10^-38 in your browser.",
-    "url": "https://www.korovatron.co.uk/mandelscope/",
-    "applicationCategory": "EducationalApplication",
-    "operatingSystem": "Any",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "GBP"
-    },
-    "author": {
-      "@type": "Person",
-      "name": "Neil Kendall"
-    },
-    "keywords": "Mandelbrot set, Julia set, fractals, mathematics, complex numbers, visualisation",
-    "screenshot": "https://www.korovatron.co.uk/mandelscope/screenshot.png",
-    "softwareVersion": "1.0",
-    "datePublished": "2025-10-31"
+    "@graph": [
+        {
+            "@type": "BreadcrumbList",
+            "@id": "https://www.korovatron.co.uk/mandelscope/#breadcrumb",
+            "itemListElement": [
+                {
+                    "@type": "ListItem",
+                    "position": 1,
+                    "name": "Korovatron",
+                    "item": "https://www.korovatron.co.uk/"
+                },
+                {
+                    "@type": "ListItem",
+                    "position": 2,
+                    "name": "Mandelscope",
+                    "item": "https://www.korovatron.co.uk/mandelscope/"
+                }
+            ]
+        },
+        {
+            "@type": "WebApplication",
+            "@id": "https://www.korovatron.co.uk/mandelscope/#webapplication",
+            "name": "Mandelscope",
+            "description": "Explore Mandelbrot and Julia sets with real-time GPU rendering, preset locations, and perturbation-powered deep zoom down to 10^-38 in your browser.",
+            "url": "https://www.korovatron.co.uk/mandelscope/",
+            "applicationCategory": "EducationalApplication",
+            "operatingSystem": "Web Browser",
+            "inLanguage": "en-GB",
+            "isAccessibleForFree": true,
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "GBP"
+            },
+            "author": {
+                "@type": "Person",
+                "name": "Neil Kendall",
+                "url": "https://www.korovatron.co.uk"
+            },
+            "publisher": {
+                "@id": "https://www.korovatron.co.uk/#organization"
+            },
+            "keywords": "Mandelbrot set, Julia set, fractals, mathematics, complex numbers, visualisation",
+            "screenshot": "https://www.korovatron.co.uk/mandelscope/screenshot.png",
+            "image": "https://www.korovatron.co.uk/mandelscope/screenshot.png",
+            "softwareVersion": "1.0",
+            "datePublished": "2025-10-31",
+            "breadcrumb": {
+                "@id": "https://www.korovatron.co.uk/mandelscope/#breadcrumb"
+            }
+        }
+    ]
   }
   </script>
   
