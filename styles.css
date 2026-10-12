@@ -7,8 +7,8 @@
   --safe-area-right:env(safe-area-inset-right);
 }
 
-html,body{height:100%;height:var(--actual-vh, 100vh);overflow:hidden;overscroll-behavior:none}
-#app{display:none;flex-direction:column;width:100vw;height:var(--actual-vh, 100vh)}
+html,body{width:100%;height:100%;height:var(--actual-vh, 100vh);min-height:100vh;min-height:var(--actual-vh, 100vh);overflow:hidden;overscroll-behavior:none}
+#app{display:none;flex-direction:column;position:fixed;inset:0;width:100vw;height:100vh;height:var(--actual-vh, 100vh);min-height:var(--actual-vh, 100vh)}
 #app.visible{display:flex}
 body{background:#100C5C;color:#000;overflow:hidden}
 

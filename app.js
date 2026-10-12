@@ -1,102 +1,69 @@
 (function(){
   
-  // Comprehensive fix for iOS PWA viewport height and safe area inset race conditions
+  // iOS PWA viewport fix: compensates for safe-area-inset-top being subtracted from
+  // innerHeight, normalising for visualViewport.scale (screen/safe-area are in physical points)
   let lastKnownHeight = 0;
-  
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+                window.matchMedia('(display-mode: fullscreen)').matches ||
+                window.navigator.standalone === true;
+
   function setActualVH(){
-    // Force layout recalculation to ensure CSS changes are applied
-    document.body.offsetHeight;
-    
-    // iOS PWA bug: window.innerHeight excludes safe areas on initial load
-    // Try visualViewport first (more reliable), fallback to innerHeight
+    // innerHeight is the source of truth; visualViewport.height is too volatile
     let viewportHeight = window.innerHeight;
-    if(window.visualViewport && window.visualViewport.height) {
-      viewportHeight = window.visualViewport.height;
-    }
-    
-    // iOS PWA bug workaround: iOS sometimes incorrectly subtracts safe-area-top from innerHeight
-    // Detect this and manually compensate by adding it back
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
-                  window.navigator.standalone === true;
-    
-    if(isPWA && window.screen && window.screen.height) {
-      // Only compensate in portrait mode (landscape has safe areas on sides, not top)
-      const isPortrait = window.innerHeight > window.innerWidth;
-      
-      if(isPortrait) {
-        // In portrait: compare with portrait screen dimension
-        // screen.height/width don't rotate, so pick the larger value (portrait height)
-        const screenPortraitHeight = Math.max(window.screen.height, window.screen.width);
-        const difference = screenPortraitHeight - viewportHeight;
-        
-        // In PWA mode, detect iOS bug where safe-area-top is incorrectly subtracted from innerHeight
-        // iPhone: diff ~59px, iPad Pro: diff ~32px, Normal: diff should be ~0-5px
-        // Use threshold of 15px to catch both iPhone and iPad cases without false positives
-        if(difference > 15) {
-          // Try to get safe-area-top from CSS
-          const computedStyle = getComputedStyle(document.documentElement);
-          const safeTop = computedStyle.getPropertyValue('--safe-area-top');
-          const safeTopPx = parseInt(safeTop) || 0;
-          
-          if(safeTopPx > 0) {
-            viewportHeight += safeTopPx;
-          }
-        } else {
-          // Portrait but difference too small - no compensation needed
+    const isPortrait = window.innerHeight > window.innerWidth;
+
+    if(isIOS && isPWA && isPortrait){
+      // Flush layout so the computed safe-area value isn't stale
+      void document.documentElement.offsetHeight;
+
+      const scale = (window.visualViewport && window.visualViewport.scale) || 1;
+      const screenPortraitHeight = Math.max(window.screen.height, window.screen.width) / scale;
+      const difference = screenPortraitHeight - viewportHeight;
+
+      if(difference > 2){
+        const safeTop = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-top');
+        const safeTopPx = (parseInt(safeTop) || 0) / scale;
+
+        if(safeTopPx > 0){
+          viewportHeight += safeTopPx;
+        } else if(difference <= 180 / scale){
+          // Safe-area not resolved yet (cold launch): guess full screen height until a retry
+          viewportHeight = screenPortraitHeight;
         }
-      } else {
-        // Landscape mode - no compensation needed
       }
     }
-    
-    const vh = viewportHeight * 0.01;
+
     document.documentElement.style.setProperty('--actual-vh', `${viewportHeight}px`);
-    
-    // Detect if height changed significantly (iOS finally calculated safe areas correctly)
-    if(lastKnownHeight > 0 && Math.abs(viewportHeight - lastKnownHeight) > 30) {
-      // Height changed significantly - trigger resize to update canvas
-      setTimeout(() => {
-        window.dispatchEvent(new Event('resize'));
-      }, 50);
+
+    // Height changed significantly: re-measure canvas
+    if(lastKnownHeight > 0 && Math.abs(viewportHeight - lastKnownHeight) > 30){
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
     }
-    
+
     lastKnownHeight = viewportHeight;
   }
-  
-  // Initial calculation
-  setActualVH();
-  
-  // Multiple delayed recalculations to catch iOS safe area insets whenever they become available
-  // iOS may not have calculated safe areas immediately on load
-  // Extended delays as iOS can report incorrect innerHeight initially (873 vs 932 in testing)
-  setTimeout(setActualVH, 50);
-  setTimeout(setActualVH, 150);
-  setTimeout(setActualVH, 300);
-  setTimeout(setActualVH, 500);
-  setTimeout(setActualVH, 800);
-  setTimeout(setActualVH, 1200);
-  
-  // Force layout recalculation after viewport settles (fixes iOS WebGL bottom border issue)
-  // Trigger a resize event to force canvas to recalculate dimensions with proper viewport height
-  setTimeout(() => {
-    window.dispatchEvent(new Event('resize'));
-  }, 1300);
-  
-  // Standard event listeners
-  window.addEventListener('resize', setActualVH);
-  window.addEventListener('orientationchange', setActualVH);
-  
-  // visualViewport API for better PWA support (more reliable than window resize on iOS)
-  if(window.visualViewport){
-    window.visualViewport.addEventListener('resize', setActualVH);
+
+  function scheduleVHUpdates(delays){
+    delays.forEach(d => setTimeout(setActualVH, d));
   }
-  
-  // Handle app switching / visibility changes (catches cases when returning to app)
+
+  // env(safe-area-inset-*) resolves asynchronously, so retry over a long schedule
+  setActualVH();
+  scheduleVHUpdates([50, 100, 200, 350, 600, 900, 1300, 1800, 2400]);
+  if(isIOS && isPWA){
+    [350, 900, 1800, 2400].forEach(d => setTimeout(() => window.dispatchEvent(new Event('resize')), d));
+  }
+
+  window.addEventListener('resize', setActualVH);
+  window.addEventListener('orientationchange', () => scheduleVHUpdates([50, 100, 200, 350, 600, 900, 1300, 1800]));
+  if(screen.orientation){
+    screen.orientation.addEventListener('change', () => scheduleVHUpdates([50, 100, 200, 350, 600, 900, 1300, 1800]));
+  }
+
   document.addEventListener('visibilitychange', function(){
-    if(!document.hidden){
-      setActualVH();
-      setTimeout(setActualVH, 50);
-    }
+    if(!document.hidden) scheduleVHUpdates([50, 200, 500, 900]);
   });
 
   // Register service worker for PWA
